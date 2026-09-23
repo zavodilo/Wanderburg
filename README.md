@@ -7,6 +7,10 @@
 бомбардой — и за забег вырастает в восьмислотную боевую машину с арканными башнями,
 мортирами и паровым тараном.
 
+![долина](docs/screenshots/valley.png)
+
+*Меню:* ![меню](docs/screenshots/menu.png) · *Бой и HUD:* ![бой](docs/screenshots/battle.png) · *Горное кольцо:* ![кольцо](docs/screenshots/rim.png)
+
 Сделано на [ArcEngine (PlayArcEngine)](https://github.com/zavodilo/PlayArcEngine) —
 zero-dependency наборе для 3D-игр в браузере (PlayCanvas 2, vanilla JS, без npm и без
 сборки). Вся геометрия, звук и музыка игры **синтезируются кодом**: в репозитории нет ни
