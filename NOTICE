@@ -1,0 +1,28 @@
+# NOTICE — third-party components
+
+ArcEngine bundles the following MIT-licensed components. Their copyright notices and
+permission notices are preserved below and in the vendored files.
+
+## PlayCanvas Engine 2
+
+`libs/playcanvas.min.js`, `libs/playcanvas.d.ts` — https://github.com/playcanvas/engine
+Copyright (c) 2011-2026 PlayCanvas Ltd.
+Licensed under the MIT License (see `libs/PLAYCANVAS_LICENSE`).
+
+## @playcanvas/skills v0.3.0
+
+`claude/vendor/playcanvas/` — https://github.com/playcanvas/skills
+Copyright (c) 2011-2026 PlayCanvas Ltd.
+Licensed under the MIT License (see `claude/vendor/playcanvas/LICENSE`).
+Vendored as-is; agent-facing copies under `.claude/skills/` and `.agents/skills/` are
+generated from this canon by `tools/sync-skills.mjs`.
+
+## create-playcanvas
+
+https://github.com/playcanvas/create-playcanvas — MIT. Not bundled: used as a design
+reference for the agent-skills packaging (Phase A of `ROADMAP.md`).
+
+## simplex-noise
+
+`libs/simplex-noise.js` — https://github.com/jwagner/simplex-noise.js
+Copyright (c) 2022 Jonas Wagner, MIT License.

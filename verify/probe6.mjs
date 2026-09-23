@@ -1,0 +1,15 @@
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+const require = createRequire(import.meta.url);
+const puppeteer = require('puppeteer');
+const srv = spawn(process.execPath, ['tools/dev-server.mjs', '--port=8317', '--no-open'], { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] });
+await new Promise(res => { srv.stdout.on('data', d => { if (String(d).includes('http://')) res(); }); setTimeout(res, 3000); });
+const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+const page = await browser.newPage();
+await page.setViewport({ width: 640, height: 360 });
+let first = null;
+page.on('pageerror', e => { if (!first) first = (e.stack || e.message); });
+await page.goto('http://127.0.0.1:8317/index.html?run=1', { waitUntil: 'domcontentloaded' });
+await new Promise(r => setTimeout(r, 8000));
+console.log(first ? first.split('\n').slice(0, 12).join('\n') : 'no pageerror');
+await browser.close(); srv.kill();

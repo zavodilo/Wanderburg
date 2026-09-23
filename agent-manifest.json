@@ -1,0 +1,154 @@
+{
+    "kit": "ArcEngine",
+    "gameVersion": "0.1.0",
+    "apiVersion": {
+        "scene": 1,
+        "manifest": 1
+    },
+    "engine": "PlayCanvas 2 (libs/playcanvas.min.js, WebGL2 only)",
+    "license": "MIT (see LICENSE, NOTICE)",
+    "entryPoints": {
+        "human": [
+            "README.md",
+            "CLAUDE.md",
+            "ROADMAP.md"
+        ],
+        "agents": [
+            "AGENTS.md",
+            "agent-manifest.json",
+            ".agents/skills/",
+            ".claude/skills/",
+            ".cursor/rules/arcengine.mdc"
+        ]
+    },
+    "skills": {
+        "kit": [
+            {
+                "name": "build",
+                "description": "Dev server, build and code checks — dev server (tools/dev-server.mjs), archive builder (tools/build.mjs, asset-scan.mjs, zip.mjs), tsc type check and node --test tests (tools/check.mjs, tsconfig.json,",
+                "canon": "claude/skills/build/SKILL.md"
+            },
+            {
+                "name": "editor",
+                "description": "The kit's web editor (_utils/editor) — location view with free/game cameras, toon toggle, Global Settings tab (constants inspector from schema.js, saves to Constants.js), Objects tab (location objects",
+                "canon": "claude/skills/editor/SKILL.md"
+            },
+            {
+                "name": "render-conventions",
+                "description": "Conventions and hard limits for anything you add to the scene yourself — custom geometry (winding in the mirrored world, culling), normal maps (OpenGL vs DirectX), extra lights (shadow casters, the si",
+                "canon": "claude/skills/render-conventions/SKILL.md"
+            },
+            {
+                "name": "sound",
+                "description": "The game's sound — js/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js, the AUDIO_* constants, tools/make-sounds.mjs ",
+                "canon": "claude/skills/sound/SKILL.md"
+            },
+            {
+                "name": "ui",
+                "description": "The game's UI (HUD) — js/UI.js runtime, js/UILayout.js layout records, the editor's UI tab (_utils/editor/ui-panel.js) with drag and resize over the view, UI_REF_HEIGHT scaling. Read before adding or ",
+                "canon": "claude/skills/ui/SKILL.md"
+            },
+            {
+                "name": "verify",
+                "description": "How to check a change with your own eyes and numbers — the Browser pane, Debug3D (held view, synchronous frames, benchmark, scene lint, debug render modes), measuring frame cost, reproducing the user'",
+                "canon": "claude/skills/verify/SKILL.md"
+            },
+            {
+                "name": "world3d",
+                "description": "The kit's 3D engine — World3D (engine, View3D, light, shadows, toon shader chunks, ink edges and silhouette outline, addObject), Terrain3D (ground), Location3D (location), Model3D and Gltf3D (static F",
+                "canon": "claude/skills/world3d/SKILL.md"
+            }
+        ],
+        "vendor": {
+            "source": "@playcanvas/skills",
+            "version": "v0.3.0",
+            "license": "MIT",
+            "names": [
+                "add-effects",
+                "apply-conventions",
+                "assemble-scene",
+                "bake-lighting",
+                "build-app",
+                "build-hud",
+                "calibrate-model",
+                "configure-animation",
+                "find-examples",
+                "inspect-glb",
+                "light-scene",
+                "manage-game-state",
+                "override-shader-chunks",
+                "reduce-draw-calls",
+                "reuse-scripts",
+                "verify-pixels"
+            ]
+        },
+        "priority": "kit skills win over vendor on any conflict about kit files"
+    },
+    "api": {
+        "scene": [
+            "spawn(model, opts)",
+            "move(name, patch)",
+            "remove(name)",
+            "query(filter?)",
+            "inspect()",
+            "follow(name|null)",
+            "manifest()",
+            "seed(n)",
+            "random()",
+            "journal()"
+        ],
+        "edit": [
+            "Edit.begin(label)",
+            "tx.add(model, opts)",
+            "tx.update(name, patch)",
+            "tx.remove(name)",
+            "tx.ops()",
+            "tx.commit()",
+            "tx.rollback()"
+        ],
+        "ui": [
+            "UI.get(id)",
+            "UI.query()",
+            "UI.patch(id, patch)",
+            "UI.add(def)",
+            "UI.remove(id)"
+        ],
+        "kit": [
+            "Kit.state(key, value?)",
+            "Kit.onFrame(name, fn)",
+            "Kit.offFrame(name)",
+            "Kit.time()",
+            "Kit.dt()",
+            "Kit.fps()"
+        ],
+        "asset": [
+            "Asset.preload(path)",
+            "Asset.list()",
+            "Asset.loaded(path)"
+        ]
+    },
+    "checks": {
+        "fast": "node tools/check.mjs",
+        "release": "node tools/check.mjs --all",
+        "types": "node tools/check.mjs --types",
+        "tests": "node tools/check.mjs --tests",
+        "skillsSync": "node tools/sync-skills.mjs --check",
+        "sceneManifest": "node tools/manifest.mjs --check",
+        "render": "node tools/headless-gate.mjs --render",
+        "visual": "node tools/headless-gate.mjs --visual",
+        "serve": {
+            "game": "node tools/dev-server.mjs",
+            "editor": "node _utils/editor/server.mjs"
+        },
+        "cli": {
+            "anyOs": "node tools/arc.mjs <run|editor|check|build|gate|sync|manifest|scaffold>",
+            "windows": "run.bat / editor.bat / check.bat / build.bat (thin wrappers)",
+            "unix": "./run.sh / ./editor.sh / ./check.sh / ./build.sh (thin wrappers)"
+        }
+    },
+    "determinism": {
+        "agentPrng": "Scene.seed(n) + Scene.random(); starters use Scene.random, never Math.random",
+        "terrain": "TERRAIN_NOISE_SEED constant (editor-tunable), independent of Scene.seed",
+        "visualGate": "fixed viewport 1280x720, fixed seed in the gate scenarios"
+    }
+}

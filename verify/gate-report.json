@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "gate": "headless",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "seed": 42,
+  "checks": {
+    "render": true,
+    "visual": true
+  },
+  "game": {
+    "consoleErrors": [],
+    "smoke": {
+      "ok": true,
+      "uniqueColors16": 169,
+      "mean": [
+        83.47270833333333,
+        110.00625,
+        63.37034722222222
+      ],
+      "groundish": true,
+      "uiChildren": 114,
+      "sceneObjects": 0
+    }
+  },
+  "editor": {
+    "consoleErrors": [],
+    "smoke": {
+      "panes": 6,
+      "ok": true,
+      "uniqueColors16": 60,
+      "mean": [
+        81.07972222222222,
+        112.05770833333334,
+        56.778888888888886
+      ],
+      "groundish": true,
+      "uiChildren": 115,
+      "sceneObjects": -1
+    }
+  },
+  "screenshots": [
+    "/tmp/arena/tenants/b1b9dade-d0fd-4843-84d6-397dfe71c34f/sessions/91358a0d-523f-4876-b5f6-b3353d95fcab/workspace/wanderburg/verify/gate-game.png",
+    "/tmp/arena/tenants/b1b9dade-d0fd-4843-84d6-397dfe71c34f/sessions/91358a0d-523f-4876-b5f6-b3353d95fcab/workspace/wanderburg/verify/gate-editor.png"
+  ],
+  "failures": []
+}
