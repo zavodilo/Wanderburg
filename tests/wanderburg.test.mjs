@@ -319,3 +319,40 @@ test('бегущие не дёргаются: смена угрозы и пов�
     // И деревня при этом реально убегает, а не застыла: страх жив.
     assert.ok(village.flee > 0 || WB.M.dist(player.x, player.y, village.x, village.y) > 460, 'деревня продолжает бояться');
 });
+
+// «Танки дёргаются во время движения»: наклон/крен корпуса ставились из slopeAt КАЖДЫЙ кадр без
+// демпфирования — на шумовом рельефе корпус трусило с частотой кадра; заряд вардена ещё и
+// телепортировал курс. Теперь pitch/roll демпфированы (6/с), заряд доворачивает за 2.6 рад/с.
+test('корпуса не трусит: наклон и крен демпфированы, заряд доворачивает', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 9091, region: 0 });
+    const p = run.player;
+    let worstPitch = 0, worstRoll = 0;
+    let prevP = p.pitch || 0, prevR = p.roll || 0;
+    for (let i = 0; i < 60 * 20; i++) {
+        run.update(1 / 60, { throttle: 1, steer: Math.sin(i / 40) * 0.7, boost: false });
+        worstPitch = Math.max(worstPitch, Math.abs((p.pitch || 0) - prevP));
+        worstRoll = Math.max(worstRoll, Math.abs((p.roll || 0) - prevR));
+        prevP = p.pitch || 0; prevR = p.roll || 0;
+    }
+    const cap = 6 / 60 + 1e-6;      // демпфер 6/с не даёт прыжка больше ~6 рад/с
+    assert.ok(worstPitch <= cap, 'pitch: ' + (worstPitch * 57.3).toFixed(2) + '°/кадр > ' + (cap * 57.3).toFixed(2) + '°');
+    assert.ok(worstRoll <= cap, 'roll: ' + (worstRoll * 57.3).toFixed(2) + '°/кадр > ' + (cap * 57.3).toFixed(2) + '°');
+    // заряд вардена: курс доворачивает, а не телепортируется
+    const r2 = new WB.Run({ seed: 9092, region: 3 });
+    let worstTurn = 0, prevH = null;
+    for (let i = 0; i < 60 * 30; i++) {
+        run.update(0, { throttle: 0, steer: 0, boost: false });   // no-op tick keeps types honest
+        r2.update(1 / 60, { throttle: 0, steer: 0, boost: false });
+        const b = r2.boss;
+        if (b && b.ai && b.ai.state === 'charge') {
+            if (prevH != null) {
+                let d = Math.abs(((b.heading - prevH + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+                worstTurn = Math.max(worstTurn, d);
+            }
+            prevH = b.heading;
+        } else prevH = null;
+    }
+    assert.ok(worstTurn <= 2.6 / 60 + 1e-6, 'заряд доворачивает: ' + (worstTurn * 57.3).toFixed(2) + '°/кадр');
+});

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { ROOT } from './browser-scripts.mjs';
+import { ROOT, loadScripts } from './browser-scripts.mjs';
 import { loadManifest, validate } from '../tools/render-profiles.mjs';
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -89,4 +89,27 @@ test('the project descriptor and the variant files agree (one Master Project)', 
     }
     assert.ok(project.variants.includes(project.defaultVariant));
     assert.equal(project.gameModel, 'js/GameSpec.js', 'one shared game model for every variant');
+});
+
+test('putInLayer: прозрачный инстанс принудительно пере-добавляется в слой (кворк движка)', () => {
+  // A fake layer bookkeeping: record add/remove calls; the guard must double-add transparens.
+  const calls = [];
+  const layer = { addMeshInstances: (list) => calls.push(['add', list.length]), removeMeshInstances: (list) => calls.push(['rm', list.length]) };
+  const view = {
+    app: { scene: { layers: { getLayerById: () => layer } } },
+    _miLayers: new Map(),
+  };
+  // The method lives on View3D: load the engine file in a vm context and take the prototype.
+  const enginePage = loadScripts(['js/Constants.js', 'js/engine/World3D.js'], { pc: { BLEND_NONE: 0, BLEND_PREMULTIPLIED: 3 } });
+  const proto = enginePage.get('View3D').prototype;
+  const transparent = { material: { blendType: 3 } };   // pc.BLEND_PREMULTIPLIED-ish
+  const opaque = { material: { blendType: 0 } };
+  proto.putInLayer.call(view, transparent, 7);
+  assert.deepEqual(calls, [['add', 1], ['rm', 1], ['add', 1]], 'прозрачный: add → rm → add');
+  calls.length = 0;
+  proto.putInLayer.call(view, transparent, 7);
+  assert.deepEqual(calls, [], 'тот же инстанс в тот же слой повторно: ничего не делаем');
+  const view2 = { app: { scene: { layers: { getLayerById: () => layer } } }, _miLayers: new Map() };
+  proto.putInLayer.call(view2, opaque, 7);
+  assert.deepEqual(calls, [['add', 1]], 'непрозрачный: одно добавление');
 });

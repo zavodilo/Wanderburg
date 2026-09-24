@@ -263,12 +263,14 @@ const UI_COLOR = /^#[0-9a-fA-F]{6}$/;
 const UI_TYPES = {
   x: 'px', y: 'px', w: 'size', h: 'size', radius: 'size', fontSize: 'size', value: 'unit', alpha: 'unit',
   color: 'color', fill: 'color', border: 'color', shadow: 'color', text: 'text', visible: 'flag',
+  bleed: 'flag',
 };
 export const UI_FIELDS = {
   text: ['x', 'y', 'text', 'fontSize', 'color', 'shadow', 'alpha', 'visible'],
   panel: ['x', 'y', 'w', 'h', 'fill', 'border', 'radius', 'alpha', 'visible'],
   bar: ['x', 'y', 'w', 'h', 'value', 'color', 'fill', 'border', 'radius', 'alpha', 'visible'],
   button: ['x', 'y', 'w', 'h', 'text', 'fontSize', 'color', 'fill', 'border', 'radius', 'alpha', 'visible'],
+  screen: ['x', 'y', 'w', 'h', 'fill', 'border', 'radius', 'alpha', 'visible', 'bleed'],
 };
 
 // A field value -> its literal in the file; invalid — null.

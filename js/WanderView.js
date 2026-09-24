@@ -19,6 +19,8 @@
 class WanderView {
     /** @param {{ location: Location3D, camera: CameraController }} app */
     constructor(app) {
+        // ?nopack=1 — procedural geometry only (the A/B half of verify/packdiff.mjs)
+        this.noPack = !!(typeof Game !== 'undefined' && Game.queryNoPack && Game.queryNoPack());
         this.app = app;
         this.location = app.location;
         this.camera = app.camera;
@@ -298,7 +300,7 @@ class WanderView {
      * builders below are the fallback, per the kit's "a missing asset never holes the scene".
      */
     packParts(kind, seed, height, tint, t, pal) {
-        if (typeof WANDER_PACK_GEO === 'undefined') return [];
+        if (this.noPack || typeof WANDER_PACK_GEO === 'undefined') return [];
         const list = WANDER_PACK_GEO[kind];
         if (!list || !list.length) return [];
         const v = list[seed % list.length];
@@ -330,16 +332,16 @@ class WanderView {
         const scale = s.s;
         if (s.kind === 'tree') {
             const shade = (s.seed & 3) === 0 ? WB.PAL.leafDark : biome.treeColor;
-            const pack = this.packParts('tree', s.seed, 84 * scale, shade, 0.82, { green: shade, brown: WB.PAL.trunk });
+            const pack = this.packParts('tree', s.seed, 116 * scale, shade, 0.82, { green: shade, brown: WB.PAL.trunk });
             return pack.length ? pack : WanderMesh.tree(s.seed, shade, scale);
         }
         if (s.kind === 'rock') {
-            const pack = this.packParts('rock', s.seed, 34 * scale, biome.rockColor, 0.9, { green: biome.rockColor, brown: biome.rockColor });
+            const pack = this.packParts('rock', s.seed, 44 * scale, biome.rockColor, 0.9, { green: biome.rockColor, brown: biome.rockColor });
             return pack.length ? pack : WanderMesh.rock(s.seed, biome.rockColor, scale);
         }
         if (s.kind === 'bush') {
             const bshade = (s.seed & 1) ? WB.PAL.leafDark : biome.treeColor;
-            const pack = this.packParts('bush', s.seed, 22 * scale, bshade, 0.8, { green: bshade, brown: WB.PAL.trunk });
+            const pack = this.packParts('bush', s.seed, 30 * scale, bshade, 0.8, { green: bshade, brown: WB.PAL.trunk });
             return pack.length ? pack : WanderMesh.bush(s.seed, bshade, scale);
         }
         const cap = biome.ground === 2 ? 0xf4f8fb : biome.ground === 1 ? 0xe8dcc6 : 0xeaf0f4;
@@ -477,12 +479,28 @@ class WanderView {
         const layout = WanderMesh.castleParts(c);
         const recipe = layout.parts.slice();
         for (const w of WanderMesh.castleWheels(layout, c.faction)) recipe.push(w);
-        // A CC0 banner (Kenney Castle Kit geometry) over the keep, in the faction's color: it rides
-        // the hull and tilts with it because it is part of the same recipe — no extra draw call.
+        // CC0 Castle Kit on the hull: a keep tower from tier 2, curtain walls around the deck and
+        // a faction banner over it — all baked into the hull's own recipe, so they ride, tilt and
+        // die with the castle and cost no setup of their own. No pack — the procedural hull stays.
+        const stone = c.faction === 'player' ? WB.PAL.stone : WB.PAL.enemyIron;
+        if (c.tier >= 2) {
+            const keep = this.packParts('tower', (c.id || 1) * 3 + c.tier, 44 + c.tier * 12, stone, 0.55);
+            for (let i = 0; i < keep.length; i++) {
+                recipe.push({ key: 'keep' + i, hex: keep[i].hex, opts: keep[i].opts, geo: WanderMesh.translate(keep[i].geo, 0, layout.deckY, 0), at: null });
+            }
+        }
+        for (let side = 0; side < 4; side++) {
+            const a = side * Math.PI / 2;
+            const wall = this.packParts('wall', (c.id || 1) + side, 16 + c.tier * 4, stone, 0.5);
+            for (let i = 0; i < wall.length; i++) {
+                const g = WanderMesh.xform(wall[i].geo, { yaw: a, dx: Math.cos(a) * layout.r * 0.86, dz: Math.sin(a) * layout.r * 0.86, dy: layout.deckY * 0.4 });
+                recipe.push({ key: 'wall' + side + ':' + i, hex: wall[i].hex, opts: wall[i].opts, geo: g, at: null });
+            }
+        }
         const flagHex = c.faction === 'player' ? WB.PAL.banner : (c.boss ? WB.PAL.enemyDark : WB.PAL.enemy);
         const flag = this.packParts('flag', (c.id || 1) + (c.faction === 'player' ? 3 : 7), 44 + c.tier * 5, flagHex, 0.8);
         for (let i = 0; i < flag.length; i++) {
-            recipe.push({ key: 'flag' + i, hex: flag[i].hex, opts: flag[i].opts, geo: WanderMesh.translate(flag[i].geo, 0, layout.deckY + layout.wallH, 0), at: null });
+            recipe.push({ key: 'flag' + i, hex: flag[i].hex, opts: flag[i].opts, geo: WanderMesh.translate(flag[i].geo, 0, layout.deckY + (c.tier >= 2 ? 44 + c.tier * 12 : layout.wallH), 0), at: null });
         }
         const rec = this.makeEntity('castle-' + c.faction + '-' + c.kind + '-t' + c.tier, recipe, 'actor', { ink: true });
         rec.castle = c;

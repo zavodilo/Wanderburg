@@ -1,6 +1,6 @@
 {
     "kit": "ArcEngine",
-    "gameVersion": "1.0.0",
+    "gameVersion": "1.1.0",
     "apiVersion": {
         "scene": 1,
         "manifest": 1

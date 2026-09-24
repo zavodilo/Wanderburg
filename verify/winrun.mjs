@@ -88,7 +88,8 @@ function pickCard(run) {
             if (!m) return 20;
             const power = WB.moduleStat(m.mod, c.level || m.level + 1, 'power') || 0;
             const reach = WB.moduleStat(m.mod, c.level || m.level + 1, 'reach') || 0;
-            return 40 + power * 0.25 + (m.mod.id === 'plate' || m.mod.id === 'masonry' ? (hurt ? 45 : 25) : 0) + reach * 0.05;
+            const def = (m.mod.id === 'plate' || m.mod.id === 'masonry') ? (hurt ? 45 : 25) + run.regionIndex * 12 : 0;
+            return 40 + power * 0.25 + def + reach * 0.05;
         }
         if (c.kind === 'new') {
             if (freeSlots <= 0) return 4;
@@ -143,9 +144,12 @@ function drive(run) {
     const myReach = reachOf(p), myDps = dpsOf(p);
     const threat = run.threat(900);
     const boss = run.boss && run.boss.alive ? run.boss : null;
+    // Enemy hull and damage scale by 1.38 per region: what was brave in the Marches is suicide in
+    // the Crown. The caution line (retreat below, re-engage above) climbs with the region index.
+    const caution = 0.45 + Math.min(0.3, run.regionIndex * 0.09);
 
     // 1) the hull is failing: break off and patch
-    const hurt = p.hp < p.maxHp * (threat.near || boss ? 0.5 : 0.26);
+    const hurt = p.hp < p.maxHp * (threat.near || boss ? caution : 0.26);
     if (hurt && !boss) {
         const from = threat.near || p;
         const away = Math.atan2(p.y - from.y, p.x - from.x);
@@ -153,17 +157,38 @@ function drive(run) {
         return turnTo(p, dodge(run, away), p.steam > 30);
     }
 
-    // 2) the warden: kite at our own longest gun, step aside from his shells, boost out of charges
+    // 2) the warden: a fight of three phases, not a brawl.
+    //    * HURT  (<45%): break off to the open valley and let the crew patch the hull past 70%
+    //      (out-of-combat regen starts after HULL_REGEN_DELAY, so the break must be real);
+    //    * CHARGE (telegraph): sidestep hard, then punish the recovery window with steam;
+    //    * ELSE: orbit inside [0.75, 0.95] of our own longest gun — his mortars miss an orbiting
+    //      hull, our culverins do not miss him.
     if (boss) {
         const d = WB.M.dist(p.x, p.y, boss.x, boss.y);
         const telegraph = boss.ai && boss.ai.telegraph > 0;
-        let a;
-        if (telegraph && d < 520) a = Math.atan2(p.y - boss.y, p.x - boss.x);          // run out of the charge
-        else if (d < myReach * 0.72) a = Math.atan2(p.y - boss.y, p.x - boss.x) + 1.15; // too close: circle out
-        else if (d > myReach * 0.95) a = Math.atan2(boss.y - p.y, boss.x - p.x);         // too far: close in
-        else a = Math.atan2(boss.y - p.y, boss.x - p.x) + 0.85;                          // orbit at reach
-        run.__why = 'boss d=' + Math.round(d);
-        return turnTo(p, dodge(run, a), (telegraph || d > myReach * 1.3) && p.steam > 40);
+        const hpFrac = p.hp / p.maxHp;
+        if (run.__bossRetreat == null) run.__bossRetreat = false;
+        if (hpFrac < caution) run.__bossRetreat = true;
+        else if (hpFrac > caution + 0.3) run.__bossRetreat = false;
+        let a, boost = false;
+        if (run.__bossRetreat) {
+            a = Math.atan2(p.y - boss.y, p.x - boss.x);
+            boost = p.steam > 30;
+        } else if (telegraph && d < 560) {
+            a = Math.atan2(p.y - boss.y, p.x - boss.x) + 1.35;                          // sidestep the charge
+            boost = p.steam > 25;
+        } else if (telegraph) {
+            a = Math.atan2(p.y - boss.y, p.x - boss.x) + 0.9;
+        } else if (d < myReach * 0.75) {
+            a = Math.atan2(p.y - boss.y, p.x - boss.x) + 1.15;                          // too close: circle out
+        } else if (d > myReach * 0.95) {
+            a = Math.atan2(boss.y - p.y, boss.x - p.x);                                 // too far: close in
+            boost = p.steam > 60;
+        } else {
+            a = Math.atan2(boss.y - p.y, boss.x - p.x) + 0.85;                          // the orbit
+        }
+        run.__why = 'boss d=' + Math.round(d) + (run.__bossRetreat ? ' RETREAT' : telegraph ? ' sidestep' : ' orbit');
+        return turnTo(p, dodge(run, a), boost);
     }
 
     // 3) farm until we are a hull, not a cart: tier 3 and four guns before picking duels
@@ -173,7 +198,7 @@ function drive(run) {
     // courtyard used to hold the driver in a forever-duel while the gate waited ten metres away
     // (trace: gateOpen at 52s, bossSpawn never). Ride through, take the boss.
     const gateFirst = r.gate.open && !run.bossActive;
-    if (hunter && (!gateFirst || threat.dist < 220 || p.hp < p.maxHp * 0.5) && (!r.gate.open || threat.dist < 380 || p.hp < p.maxHp * 0.62 || gateFirst)) {
+    if (hunter && (!gateFirst || threat.dist < 220 || p.hp < p.maxHp * caution) && (!r.gate.open || threat.dist < 380 || p.hp < p.maxHp * (caution + 0.12) || gateFirst)) {
         const foe = threat.near;
         const dFoe = threat.dist;
         const foeReach = reachOf(foe);

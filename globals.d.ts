@@ -34,7 +34,7 @@ interface Window {
 /** UI_LAYOUT record (UILayout.js, written by the editor's UI tab); fields by kind — UI.DEFAULTS. */
 interface UIRecord {
     id: string;
-    /** 'text' | 'panel' | 'bar' | 'button' */
+    /** 'text' | 'panel' | 'bar' | 'button' | 'screen' (legacy compat kind) */
     kind: string;
     /** One of 9 screen points: 'top-left' … 'bottom-right' */
     anchor: string;
@@ -42,6 +42,8 @@ interface UIRecord {
     y: number;
     w?: number;
     h?: number;
+    /** 'screen' only: 1 — the record covers the layout viewport instead of its stored w/h. */
+    bleed?: number;
     text?: string;
     fontSize?: number;
     /** Text color; bar — the filled part. '#rrggbb' */
@@ -116,3 +118,7 @@ interface LocationObject {
     soundKey?: string;
 }
 
+
+/** Legacy games ship a stylesheet as a top-level const (UiCss.js); the kit injects it when
+ *  present (UI.injectCss) and stays silent when it is not. */
+declare const STUDIO_CSS: string;

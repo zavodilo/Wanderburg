@@ -66,3 +66,13 @@ test('js/UILayout.js набора записан редактором: форм�
   assert.equal(r.ok, true);
   assert.equal(r.src, src);
 });
+
+test('compat: вид screen живёт в рантайме и в редакторе (наследие предыдущего поколения)', () => {
+  assert.ok(UI.KINDS.includes('screen'), 'screen в KINDS');
+  assert.ok(UI.DEFAULTS.screen && UI.DEFAULTS.screen.bleed === 0, 'дефолты screen');
+  assert.deepEqual(UI_FIELDS.screen, ['x', 'y', 'w', 'h', 'fill', 'border', 'radius', 'alpha', 'visible', 'bleed']);
+  const rec = "{ id: 'cineFx', kind: 'screen', anchor: 'top-left', x: 0, y: 0, w: 2560, h: 1440, fill: '', border: '', radius: 0, alpha: 1, visible: 0, bleed: 1 }";
+  const out = formatUI([{ id: 'cineFx', kind: 'screen', anchor: 'top-left', x: 0, y: 0, w: 2560, h: 1440, fill: '', border: '', radius: 0, alpha: 1, visible: 0, bleed: 1 }]);
+  assert.ok(out.ok && out.src.includes("kind: 'screen'") && out.src.includes('bleed: 1'), 'save.mjs пишет screen');
+  void rec;
+});

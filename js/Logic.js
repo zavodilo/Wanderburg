@@ -919,8 +919,11 @@ class WBRun {
         p.speed = Math.hypot(p.vx, p.vy);
         p.h = this.region.heightAt(p.x, p.y);
         p.wheelSpin = (p.wheelSpin || 0) + (p.speed / Math.max(12, p.r * 0.42)) * dt;
-        p.pitch = WB.M.clamp(this.region.slopeAt(p.x, p.y, p.heading), -0.5, 0.5);
-        p.roll = WB.M.clamp(this.region.slopeAt(p.x, p.y, p.heading + Math.PI / 2), -0.5, 0.5);
+        // The hull RIDES the hills, it does not teleport onto them: slope-driven pitch/roll set
+        // per frame on noise terrain made moving castles shudder (the "tanks jitter" report).
+        // Damped at 6/s the tilt reads as suspension, not as a seizure.
+        p.pitch = WB.M.damp(p.pitch || 0, WB.M.clamp(this.region.slopeAt(p.x, p.y, p.heading), -0.5, 0.5), 6, dt);
+        p.roll = WB.M.damp(p.roll || 0, WB.M.clamp(this.region.slopeAt(p.x, p.y, p.heading + Math.PI / 2), -0.5, 0.5), 6, dt);
         p.hitFlash = Math.max(0, (p.hitFlash || 0) - dt * 3.2);
         p.stun = Math.max(0, (p.stun || 0) - dt);
         p.ramCd = Math.max(0, (p.ramCd || 0) - dt);
@@ -1965,14 +1968,14 @@ class WBRun {
             ai.summonCd -= dt;
             if (ai.telegraph > 0) {
                 ai.telegraph -= dt;
-                c.heading = ai.chargeDir;
+                c.heading = WB.M.turnToward(c.heading, ai.chargeDir, 2.6 * dt);   // a charge is a lunge, not a snap
                 c.vx = c.vy = 0;
                 if (ai.telegraph <= 0) { ai.chargeT = 1.7; this.emit('chargeStart', { x: c.x, y: c.y, dir: ai.chargeDir, id: c.id }); }
                 return this.driveCastle(c, dt, 0, 0, 0);
             }
             if (ai.chargeT > 0) {
                 ai.chargeT -= dt;
-                c.heading = ai.chargeDir;
+                c.heading = WB.M.turnToward(c.heading, ai.chargeDir, 2.6 * dt);   // a charge is a lunge, not a snap
                 return this.driveCastle(c, dt, 1, 0, c.speedBase * 2.15 * (ai.enrage ? 1.15 : 1));
             }
             if (ai.chargeCd <= 0 && dPlayer < 700 && p && p.alive) {
@@ -2111,8 +2114,8 @@ class WBRun {
         c.speed = Math.hypot(c.vx, c.vy);
         c.h = this.region.heightAt(c.x, c.y);
         c.wheelSpin = (c.wheelSpin || 0) + (c.speed / Math.max(12, c.r * 0.42)) * dt;
-        c.pitch = WB.M.clamp(this.region.slopeAt(c.x, c.y, c.heading), -0.4, 0.4);
-        c.roll = WB.M.clamp(this.region.slopeAt(c.x, c.y, c.heading + Math.PI / 2), -0.4, 0.4);
+        c.pitch = WB.M.damp(c.pitch || 0, WB.M.clamp(this.region.slopeAt(c.x, c.y, c.heading), -0.4, 0.4), 6, dt);
+        c.roll = WB.M.damp(c.roll || 0, WB.M.clamp(this.region.slopeAt(c.x, c.y, c.heading + Math.PI / 2), -0.4, 0.4), 6, dt);
         this.stepModules(c, dt);
         this.devour(c, dt);
         return c;

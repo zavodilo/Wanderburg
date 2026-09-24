@@ -138,6 +138,20 @@ plus `depthWrite = false`, `cull = pc.CULLFACE_NONE`, `useLighting = false`, and
 `castShadow = false` in the `World3D.addObject` opts. With `BLEND_NORMAL` and an unmultiplied
 color the panel renders effectively opaque and hides what it was meant to show.
 
+## Transparent instances (billboards, sprites, particles)
+
+- Register every transparent mesh instance through `View3D.putInLayer(mi, id)` (or
+  `World3D.addObject` / `setLayer`, which call it): the vendored PlayCanvas 2.22.x may never
+  enter a TRANSPARENT instance into the layer's transparent composition when it is added once
+  through `render.meshInstances = […]` alone — the quad then silently never draws (opaque
+  instances draw fine). `putInLayer` detects a blending material and forces the composition
+  with a remove/add cycle; keep using it even when the instance looks "already added".
+- Never move a transparent billboard by re-parenting it at run time; place it once and update
+  `setPosition`/`setEulerAngles`, or bake the motion into its shader (drift, wobble).
+- Premultiplied alpha for see-through quads: `blendType = pc.BLEND_PREMULTIPLIED`,
+  `depthWrite = false`, `cull = pc.CULLFACE_NONE`, `useLighting = false`, and the texture's
+  rgb multiplied by its alpha (or output `vec4(color * a, a)` from the shader).
+
 ## Checklist
 
 1. `await Debug3D.lint()` in the game and "Lint scene" in the editor: no errors.

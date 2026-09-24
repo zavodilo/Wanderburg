@@ -41,11 +41,17 @@ const Debug3D = {
 
     LIMITS: { meshTriangles: 300000, sampleTriangles: 20000 },
 
+    // The kit's namespaces are top-level `const` of classic scripts: they live in the global
+    // LEXICAL scope, NOT on window — `window.World3D` is undefined in a real browser, which made
+    // capture()/softwareGL()/assertVisible()/assertInFrame() silently dead outside node. Found by
+    // the Wanderburg port's verify/packdiff.mjs. (window.app IS real: main.js assigns it.)
+    world() { return /** @type {any} */ (typeof World3D !== 'undefined' ? World3D : null); },
+
     // True on software rasterizers (SwiftShader/llvmpipe/Software): headless sandboxes and
     // ancient GPUs. Games use it for VISUAL LEVELS (feedback: heavy GLB do not run in
     // headless): lower shadow map, skip hulls/ink, procedural stand-ins instead of GLB.
     softwareGL() {
-        const W = /** @type {any} */ (window).World3D;
+        const W = Debug3D.world();
         const gl = W && W.app && W.app.graphicsDevice && /** @type {any} */ (W.app.graphicsDevice).gl;
         if (!gl || !gl.getExtension) return false;
         const ext = gl.getExtension('WEBGL_debug_renderer_info');
@@ -321,7 +327,7 @@ const Debug3D = {
         const rec = this._rec(name);
         if (!rec) return { ok: false, code: 'no-object', details: { name } };
         if (!rec.mesh) return { ok: false, code: 'not-loaded', details: { name, error: rec.error } };
-        const view = /** @type {any} */ (window).World3D.view;
+        const view = Debug3D.world() ? Debug3D.world().view : null;
         const t = /** @type {any} */ (window).app.location.terrain;
         const d = rec.def;
         const ground = t ? t.heightAt(d.x, d.y) : 0;
@@ -335,7 +341,7 @@ const Debug3D = {
     assertInFrame(name) {
         const rec = this._rec(name);
         if (!rec) return { ok: false, code: 'no-object', details: { name } };
-        const view = /** @type {any} */ (window).World3D.view;
+        const view = Debug3D.world() ? Debug3D.world().view : null;
         if (!view) return { ok: false, code: 'no-view', details: { name } };
         view.refreshMatrices();
         const d = rec.def;
@@ -358,7 +364,11 @@ const Debug3D = {
 
     // Render now and hand back the frame: the agent LOOKS at the result of its edit.
     capture() {
-        const W = /** @type {any} */ (window).World3D;
+        // The kit's namespaces are top-level `const` of classic scripts: they live in the global
+        // LEXICAL scope, not on window — `window.World3D` is undefined in a real browser, which
+        // made capture() always answer "no-canvas" outside node. Found by verify/packdiff.mjs
+        // of the Wanderburg port.
+        const W = Debug3D.world();
         if (!W || !W.canvas) return { ok: false, code: 'no-canvas' };
         W.renderFrame();
         const c = W.canvas;

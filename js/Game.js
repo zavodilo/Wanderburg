@@ -59,6 +59,21 @@ class Game {
         } catch (e) { return false; }
     }
 
+    /** ?seed=N — a fixed run seed: reproducible runs for tests, A/B shots and bug reports. */
+    static querySeed() {
+        try {
+            const v = new URLSearchParams(window.location.search).get('seed');
+            const n = v == null ? NaN : Number(v);
+            return Number.isFinite(n) ? (n | 0) : null;
+        } catch (e) { return null; }
+    }
+
+    /** ?nopack=1 — the valley without the baked CC0 pack (procedural geometry only): the A/B
+     *  half of verify/packdiff.mjs and an escape hatch if a pack bake ever looks wrong. */
+    static queryNoPack() {
+        try { return new URLSearchParams(window.location.search).get('nopack') === '1'; } catch (e) { return false; }
+    }
+
     // --- input ------------------------------------------------------------------------------------
     bindInput() {
         const KEYMAP = {
@@ -253,7 +268,8 @@ class Game {
     /** The attract run behind the title screen: a real run driven by a simple autopilot. */
     startAttract() {
         this.state = 'menu';
-        this.run = new WB.Run({ seed: (Date.now() % 99991) | 0, region: 0 });
+        const attractSeed = Game.querySeed();
+        this.run = new WB.Run({ seed: attractSeed != null ? attractSeed ^ 0x51eed : (Date.now() % 99991) | 0, region: 0 });
         this.run.paused = true;                       // the menu does not simulate
         this.view.setRun(this.run);
         this.camera.follow(this.run.player);
@@ -269,7 +285,8 @@ class Game {
      * @param {boolean} useLoadout true — take the chassis/captain/seed picked in the loadout screen
      */
     startRun(useLoadout) {
-        const seed = useLoadout && Hud.seed ? Hud.seed : ((Date.now() % 99991) | 0) ^ 0x5f3a;
+        const forced = Game.querySeed();
+        const seed = forced != null ? forced : (useLoadout && Hud.seed ? Hud.seed : ((Date.now() % 99991) | 0) ^ 0x5f3a);
         const chassis = useLoadout ? Hud.chassis : (WB.chassisUnlocked(Hud.chassis || WB.CHASSIS[0], WB.Save.meta) ? (Hud.chassis || WB.CHASSIS[0]) : WB.CHASSIS[0]);
         const captain = useLoadout ? Hud.captain : (WB.captainUnlocked(Hud.captain || WB.CAPTAINS[0], WB.Save.meta) ? (Hud.captain || WB.CAPTAINS[0]) : WB.CAPTAINS[0]);
         this.run = new WB.Run({

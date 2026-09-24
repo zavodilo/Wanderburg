@@ -23,7 +23,7 @@
 const UI = {
     ANCHORS: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right',
         'bottom-left', 'bottom-center', 'bottom-right'],
-    KINDS: ['text', 'panel', 'bar', 'button'],
+    KINDS: ['text', 'panel', 'bar', 'button', 'screen'],
     FONT: 'system-ui, "Segoe UI", Roboto, sans-serif',
 
     // Fields of a record by kind and their defaults — a new element in the editor starts from them.
@@ -32,6 +32,10 @@ const UI = {
         panel: { anchor: 'top-left', x: 20, y: 20, w: 240, h: 80, fill: '#10202c', border: '', radius: 10, alpha: 0.7, visible: 1 },
         bar: { anchor: 'top-left', x: 20, y: 20, w: 240, h: 18, value: 0.6, color: '#5ad05a', fill: '#10202c', border: '#ffffff', radius: 9, alpha: 1, visible: 1 },
         button: { anchor: 'bottom-center', x: 0, y: 40, w: 180, h: 48, text: 'Button', fontSize: 20, color: '#ffffff', fill: '#2a6fb0', border: '', radius: 10, alpha: 1, visible: 1 },
+        // screen — a full-size management panel (menus, tables, forms): a panel whose inner
+        // HTML the game renders from its data (setHTML); clicks on [data-act] nodes are
+        // delegated to onAction(fn). Content styling — STUDIO_CSS (injected once as <style>).
+        screen: { anchor: 'top-left', x: 0, y: 0, w: 1280, h: 720, fill: '#131a26', border: '', radius: 0, alpha: 1, visible: 1, bleed: 0 },
     },
 
     /** @type {HTMLElement | null} */
@@ -55,12 +59,28 @@ const UI = {
         Object.assign(root.style, { position: 'absolute', overflow: 'hidden', pointerEvents: 'none', transformOrigin: '0 0',
             fontFamily: this.FONT, userSelect: 'none', webkitUserSelect: 'none' });
         (canvas.parentElement || document.body).appendChild(root);
+        this.injectCss();
         if (typeof ResizeObserver !== 'undefined') {
             this._observer = new ResizeObserver(() => this.resize());
             this._observer.observe(canvas);
         }
         this.applyLayout(layout || (typeof UI_LAYOUT !== 'undefined' ? UI_LAYOUT : []));
         return this;
+    },
+
+    // One <style> for the inner content of 'screen' elements: a game ships STUDIO_CSS
+    // (a plain string constant in a game script); the kit alone has none — guarded.
+    injectCss() {
+        if (document.getElementById('arc-screen-css')) return;
+        // STUDIO_CSS is a top-level `const` of a game css script — a lexical global binding,
+        // NOT a property of `window`. Reading it off `window` always came back undefined,
+        // which left the entire management UI unstyled. Read it by direct reference.
+        const css = typeof STUDIO_CSS !== 'undefined' ? STUDIO_CSS : null;
+        if (typeof css !== 'string' || !css) return;
+        const st = document.createElement('style');
+        st.id = 'arc-screen-css';
+        st.textContent = css;
+        document.head.appendChild(st);
     },
 
     dispose() {
@@ -206,12 +226,36 @@ class UIElement {
         this._value = prev ? prev._value : null;
         this._shown = prev ? prev._shown : null;
         this._click = prev ? prev._click : null;
+        this._html = prev ? prev._html : null;
+        this._action = prev ? prev._action : null;
         this.el.addEventListener('click', (e) => {
-            if (UI.editing || this.def.kind !== 'button' || !this._click) return;
-            e.stopPropagation();
-            this._click(this);
+            if (UI.editing) return;
+            if (this.def.kind === 'button') {
+                if (this._click) { e.stopPropagation(); this._click(this); }
+                return;
+            }
+            if (this.def.kind === 'screen' && this._action) {
+                const t = e.target instanceof Element ? /** @type {HTMLElement | null} */ (e.target.closest('[data-act]')) : null;
+                if (t) { e.stopPropagation(); this._action(String(t.dataset.act), t, e); }
+            }
+        });
+        this.el.addEventListener('change', (e) => {
+            if (UI.editing || this.def.kind !== 'screen' || !this._action) return;
+            const t = e.target instanceof Element ? /** @type {HTMLElement | null} */ (e.target.closest('[data-act]')) : null;
+            if (t) this._action('change:' + String(t.dataset.act), t, e);
         });
     }
+
+    // Screen content: an HTML string the game renders from its data. Interactive nodes
+    // carry data-act="name"; clicks arrive at onAction(fn) as fn(act, node, event),
+    // control changes — as fn('change:' + act, node, event).
+    setHTML(html) {
+        this._html = String(html == null ? '' : html);
+        if (this.inner && this.def.kind === 'screen') this.inner.innerHTML = this._html;
+        return this;
+    }
+
+    onAction(fn) { this._action = fn || null; return this; }
 
     setText(text) { this._text = String(text); this.apply(); return this; }
 
@@ -231,6 +275,15 @@ class UIElement {
         const d = this.def, s = this.el.style, a = UI.parseAnchor(d.anchor);
         const x = Number(d.x) || 0, y = Number(d.y) || 0, px = (v) => (Number(v) || 0) + 'px';
         const sized = d.kind !== 'text';
+        // A full-bleed 'screen' (bleed: 1) is an overlay over the whole VIEWPORT. A record cannot
+        // know the window's aspect ratio, so its stored w/h would either fall short (3D world
+        // leaking in at the edges) or overshoot (content centered in a 2560-wide panel lands off
+        // the right edge on 16:9). Size it to the layout-space viewport instead (skill ui).
+        let w = d.w, h = d.h;
+        if (d.kind === 'screen' && Number(d.bleed)) {
+            const vs = UI.size();
+            if (vs.w > 0 && vs.h > 0) { w = vs.w; h = vs.h; }
+        }
         s.cssText = '';
         s.position = 'absolute';
         s.boxSizing = 'border-box';
@@ -239,11 +292,11 @@ class UIElement {
         s.top = a.v === 'top' ? px(y) : a.v === 'middle' ? 'calc(50% + ' + px(y) + ')' : '';
         s.bottom = a.v === 'bottom' ? px(y) : '';
         s.transform = 'translate(' + (a.h === 'center' ? '-50%' : '0') + ', ' + (a.v === 'middle' ? '-50%' : '0') + ')';
-        if (sized) { s.width = px(d.w); s.height = px(d.h); }
+        if (sized) { s.width = px(w); s.height = px(h); }
         s.opacity = String(d.alpha == null ? 1 : Math.max(0, Math.min(1, Number(d.alpha))));
         s.display = this.visible || UI.editing ? 'block' : 'none';
         if (UI.editing && !this.visible) s.opacity = String(Number(s.opacity) * 0.35);
-        s.pointerEvents = UI.editing || d.kind === 'button' ? 'auto' : 'none';
+        s.pointerEvents = UI.editing || d.kind === 'button' || d.kind === 'screen' ? 'auto' : 'none';
         s.cursor = UI.editing ? 'move' : d.kind === 'button' ? 'pointer' : '';
 
         if (sized) {
@@ -253,7 +306,7 @@ class UIElement {
             s.overflow = 'hidden';
         }
         const label = d.kind === 'text' || d.kind === 'button';
-        if (label || d.kind === 'bar') {
+        if (label || d.kind === 'bar' || d.kind === 'screen') {
             if (!this.inner) {
                 this.inner = document.createElement('div');
                 this.el.appendChild(this.inner);
@@ -262,7 +315,11 @@ class UIElement {
             this.inner.remove();
             this.inner = null;
         }
-        if (label) {
+        if (d.kind === 'screen') {
+            const t = this.inner.style;
+            t.cssText = 'position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;';
+            if (this._html != null && this.inner.innerHTML !== this._html) this.inner.innerHTML = this._html;
+        } else if (label) {
             const t = this.inner.style;
             t.cssText = '';
             this.inner.textContent = this._text != null ? this._text : String(d.text == null ? '' : d.text);

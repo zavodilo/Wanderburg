@@ -1040,7 +1040,19 @@ class View3D {
         const comp = this.app.scene.layers;
         const old = this._miLayers.get(mi);
         if (old != null && old !== id) comp.getLayerById(old).removeMeshInstances([mi]);
-        if (old == null || old !== id) comp.getLayerById(id).addMeshInstances([mi], true);
+        if (old == null || old !== id) {
+            comp.getLayerById(id).addMeshInstances([mi], true);
+            // Engine quirk (vendored PlayCanvas 2.22.x, swiftshader and some GL drivers):
+            // a TRANSPARENT instance added to a layer once may never enter the layer's
+            // transparent composition and silently never draws (opaque ones do). A
+            // remove/add cycle right after the add forces the composition to pick it up.
+            // Billboards, sprites and particle quads rely on this; see the render-conventions
+            // skill, §Lights/transparent instances.
+            if (mi.material && mi.material.blendType != null && mi.material.blendType !== pc.BLEND_NONE) {
+                comp.getLayerById(id).removeMeshInstances([mi]);
+                comp.getLayerById(id).addMeshInstances([mi], true);
+            }
+        }
         this._miLayers.set(mi, id);
     }
 

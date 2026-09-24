@@ -100,8 +100,7 @@ test('assert*: машиночитаемые исходы вместо исклю
 // in a real browser and capture() always answered "no-canvas" outside node. Found by the
 // Wanderburg port's verify/packdiff.mjs, which needs capture() for its A/B frames.
 test('capture() берёт World3D лексически, а не с window', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'js', 'engine', 'Debug3D.js'), 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    const src = fs.readFileSync(path.join(ROOT, 'js', 'engine', 'Debug3D.js'), 'utf8');
     assert.ok(!/window\s*\)?\s*\.World3D/.test(src), 'window.World3D в браузере undefined');
     assert.match(src, /typeof World3D !== 'undefined'/);
 });
