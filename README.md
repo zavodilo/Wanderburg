@@ -21,6 +21,9 @@ zero-dependency наборе для 3D-игр в браузере (PlayCanvas 2,
 
 ## Как играть
 
+Игра опубликована на GitHub Pages: **https://zavodilo.github.io/Wanderburg/** — открывается
+меню, за которым уже живёт долина; «В ПОХОД» — и вы в ней. Локально:
+
 ```
 node tools/dev-server.mjs        # игра на http://localhost:8080
 node tools/arc.mjs run           # то же через кросс-платформенный CLI
@@ -158,6 +161,8 @@ node tools/check.mjs --profiles  # матрица профилей и конве
 node tools/check.mjs --all       # релизный гейт: + headless-рендер, visual smoke, варианты в браузере
 node --test tests/wanderburg.test.mjs    # тесты самой игры (детерминизм, генерация, бой, чертёж)
 NODE_PATH=<puppeteer> node tools/headless-gate.mjs --all   # то же напрямую (puppeteer — dev-only)
+node verify/input.mjs            # контракт ввода в Chrome: тру-клавиши + детерминированные кадры
+WB_URL=https://zavodilo.github.io/Wanderburg node verify/input.mjs   # тот же контракт по деплою
 node verify/shots.mjs 40         # скриншоты живого забега с автопилотом (verify/mig-*.png)
 node verify/smoke.mjs 4242 4     # автопилот играет забеги: темп, ступени, смертность
 node verify/bossrun.mjs 777      # цепочка «варден → следующий рубеж» end-to-end
