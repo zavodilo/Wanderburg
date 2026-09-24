@@ -1,12 +1,12 @@
 ---
 name: sound
-description: The game's sound — js/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js, the AUDIO_* constants, tools/make-sounds.mjs (the sample .wav files). Read before adding or changing ANY sound — a click, a footstep, a shot, background music, a sound at an object — before editing Sound3D.js, and before adding a file to assets/sounds.
+description: The game's sound — js/engine/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js, the AUDIO_* constants, tools/make-sounds.mjs (the sample .wav files). Read before adding or changing ANY sound — a click, a footstep, a shot, background music, a sound at an object — before editing Sound3D.js, and before adding a file to assets/sounds.
 ---
 
 # Sound: Sound3D.js, assets/sounds, the object's sound field
 
 Web Audio, no dependencies and no library. Files — `.wav`, `.mp3`, `.ogg` in `assets/sounds/`.
-`<script src="js/Sound3D.js">` stands before `World3D.js` (it is in `CODE_FILES`, skill `build`).
+`<script src="js/engine/Sound3D.js">` stands before `World3D.js` (it is in `CODE_FILES`, skill `build`).
 
 ## The rule
 

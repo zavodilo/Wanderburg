@@ -8,7 +8,7 @@ const EPS = 1e-6;
 const STEP = 90;   // CAMERA_FLY_SPEED 900 screen px/s at zoom 1 over the longest frame, 0.1 s
 
 function makeCamera(opts = {}) {
-  const page = loadScripts(['js/Constants.js', 'js/CameraControl.js'], { pc: stub(), performance });
+  const page = loadScripts(['js/Constants.js', 'js/engine/CameraControl.js'], { pc: stub(), performance });
   const CameraController = page.get('CameraController');
   const view = {
     camera: { fov: 0, position: { set() {} }, setTarget() {} },

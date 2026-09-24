@@ -71,6 +71,29 @@ if (starter !== 'kit') {
     }
 }
 
+// --- the project's own presentation data ----------------------------------------
+// A starter is a DIFFERENT project than the kit sample: its GAME_SPEC has its own id, entities
+// and asset roles. The sample's project.json / presentation/variants / mappings must therefore
+// not travel with it — a scaffolded game used to present itself as "ArcEngine Sample" with five
+// variants pointing at the sample's roles, and `arc variant list` lied about the project.
+// Reset them and regenerate from the starter's spec (one variant per profile, <id>-<profile>).
+if (starter !== 'kit') {
+    for (const sub of ['variants', 'mappings']) {
+        const dir = path.join(target, 'presentation', sub);
+        if (!fs.existsSync(dir)) continue;
+        for (const f of fs.readdirSync(dir)) fs.rmSync(path.join(dir, f));
+    }
+    const journal = path.join(target, 'presentation', 'migration-journal.json');
+    if (fs.existsSync(journal)) fs.writeFileSync(journal, '[]\n');
+    // generate FIRST: it rewrites project.json + js/presentation/Variants.js from the starter's
+    // GAME_SPEC and the (now empty) disk canon. Without it, create-all would read the sample's
+    // project.json still on disk and re-materialize the sample's variant ids.
+    const gen = spawnSync(process.execPath, ['tools/variants.mjs', 'generate'], { cwd: target, stdio: 'inherit' });
+    if (gen.status !== 0) die('project generation failed in the target');
+    const r = spawnSync(process.execPath, ['tools/variants.mjs', 'create-all'], { cwd: target, stdio: 'inherit' });
+    if (r.status !== 0) die('variant generation failed in the target');
+}
+
 // --- agent skill copies inside the target --------------------------------------
 if (!NO_SKILLS) {
     const r = spawnSync(process.execPath, ['tools/sync-skills.mjs'], { cwd: target, stdio: 'inherit' });
@@ -85,7 +108,9 @@ fs.writeFileSync(path.join(target, 'STARTER.md'),
             ? 'Blank scene: no objects, no logic. Spawn from code or an agent:\n`Scene.spawn(\'assets/models/mill.fbx\', { kind: \'prop\', x: 900, y: 900 })`.\n'
             : 'Survival skeleton: waves of wanderers chase the hero (Scene API), stamina HUD by data.\n') +
     '\nRun: `node tools/dev-server.mjs` (game), `node _utils/editor/server.mjs` (editor),\n' +
-    '`node tools/check.mjs` (types + tests + skills sync). Agents start from AGENTS.md / CLAUDE.md.\n');
+    '`node tools/check.mjs` (types + tests + skills sync). Agents start from AGENTS.md / CLAUDE.md.\n' +
+    '\nThe game model lives in js/GameSpec.js; `node tools/arc.mjs variants` refreshes project.json\n' +
+    'and the variant files for this project, `node tools/arc.mjs run --all` presents every profile.\n');
 
 console.log('create-arcengine: ' + files + ' files -> ' + path.relative(process.cwd(), target) +
     ' (starter: ' + starter + (NO_SKILLS ? ', no skills' : '') + ')');

@@ -27,8 +27,8 @@ interface ArcMesh extends pc.Mesh {
 }
 
 interface Window {
-    /** main.js: the game's location, camera and game logic — for the console and game code. */
-    app?: { location: Location3D; camera: CameraController; game: Game | null };
+    /** main.js: the game's location, camera, game logic and the runtime context of this tab. */
+    app?: { location: Location3D; camera: CameraController; game: Game | null; runtime: any | null };
 }
 
 /** UI_LAYOUT record (UILayout.js, written by the editor's UI tab); fields by kind — UI.DEFAULTS. */
@@ -80,6 +80,9 @@ interface LocationObjectDef {
     tag?: string;
     /** Placed but not in the scene until location.setHidden(rec, false). */
     hidden?: boolean;
+    /** Presentation-only suppression (Visual3D): a profile shows this entity as a sprite
+     *  instead of a model. Never written into Objects.js — def.hidden is the editor's. */
+    suppressed?: boolean;
     /** A sound standing at the object (Sound3D): src — assets/sounds/…, looped unless loop is false. */
     sound?: { src: string; volume?: number; loop?: boolean; falloffMin?: number; falloffMax?: number };
 }
@@ -103,6 +106,10 @@ interface LocationObject {
     clip?: string;
     /** True when the model file was missing and Procedural3D built a stand-in. */
     fallbackUsed?: boolean;
+    /** Presentation-only suppression (Location3D.setSuppressed, called by Visual3D): a profile
+     *  presents this entity as a sprite, so the model stays out of the frame. Never written
+     *  into Objects.js — def.hidden is the editor's field. */
+    suppressed?: boolean;
     clipRoot?: pc.Entity | null;
     /** The playing def.sound and what it was started from (Location3D.updateSound). */
     sound?: SoundHandle | null;

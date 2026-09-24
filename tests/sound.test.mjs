@@ -1,10 +1,10 @@
-// Sound (js/Sound3D.js): the distance and pan math, and the object sound of Location3D —
+// Sound (js/engine/Sound3D.js): the distance and pan math, and the object sound of Location3D —
 // logic without Web Audio (the frame loop feeds it a camera, the location — def.sound).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadScripts } from './browser-scripts.mjs';
 
-const page = loadScripts(['js/Constants.js', 'js/Sound3D.js']);
+const page = loadScripts(['js/Constants.js', 'js/engine/Sound3D.js']);
 const Sound3D = page.get('Sound3D');
 const FULL = 300, MAX = 1500, PAN = 1;
 // spatial(source, listener, min, max, width): world points { x, y — map px, h — height }.
@@ -86,7 +86,7 @@ test('звук объекта: перезапуск только при смен
       return handle;
     },
   };
-  const loc = loadScripts(['js/Constants.js', 'js/Location3D.js'], { Sound3D: fake }).get('Location3D');
+  const loc = loadScripts(['js/Constants.js', 'js/engine/Location3D.js'], { Sound3D: fake }).get('Location3D');
   const rec = { def: { x: 10, y: 20, sound: { src: 'assets/sounds/mill.mp3' } }, mesh: null };
   const update = () => loc.prototype.updateSound.call({ opts: {} }, rec);
 
@@ -127,7 +127,7 @@ test('звук объекта: перезапуск только при смен
 
 test('удаление объекта останавливает его звук', () => {
   const handle = { playing: true, stop() { this.playing = false; } };
-  const loc = loadScripts(['js/Constants.js', 'js/Location3D.js'], { Sound3D: {} }).get('Location3D');
+  const loc = loadScripts(['js/Constants.js', 'js/engine/Location3D.js'], { Sound3D: {} }).get('Location3D');
   const rec = { def: {}, mesh: null, sound: handle, soundKey: 'assets/sounds/mill.mp3|loop' };
   const self = { objects: [rec], view: null };
   loc.prototype.removeObject.call(self, rec);
@@ -137,7 +137,7 @@ test('удаление объекта останавливает его звук
 });
 
 test('поиск по тегу: все объекты группы в порядке списка, пустой тег — ничего', () => {
-  const loc = loadScripts(['js/Constants.js', 'js/Location3D.js'], { Sound3D: {} }).get('Location3D');
+  const loc = loadScripts(['js/Constants.js', 'js/engine/Location3D.js'], { Sound3D: {} }).get('Location3D');
   const objects = [{ def: { name: 'a', tag: 'coin' } }, { def: { name: 'b' } }, { def: { name: 'c', tag: 'coin' } }];
   // Array.from: the list comes from the vm context — another realm, deepEqual compares prototypes.
   const find = (tag) => Array.from(loc.prototype.findByTag.call({ objects }, tag), r => r.def.name);

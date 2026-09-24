@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadScripts, stub } from './browser-scripts.mjs';
 
-const page = loadScripts(['js/Debug3D.js', 'js/Procedural3D.js'], { pc: stub() });
+const page = loadScripts(['js/engine/Debug3D.js', 'js/engine/Procedural3D.js'], { pc: stub() });
 const Procedural3D = page.get('Procedural3D');
 const Mesh3D = page.get('Mesh3D');
 const Debug3D = page.get('Debug3D');

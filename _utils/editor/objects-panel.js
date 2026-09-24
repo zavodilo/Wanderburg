@@ -711,7 +711,7 @@ const ObjectsPanel = {
 /** @satisfies {Record<string, any>} */
 const PaneTabs = {
     KEY: 'arcengine.editor.tab',
-    TABS: ['settings', 'objects', 'ui'],
+    TABS: ['settings', 'objects', 'ui', 'profile'],
     current: 'settings',
 
     init() {

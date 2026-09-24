@@ -1,0 +1,55 @@
+{
+    "id": "wanderburg-lowpoly3d",
+    "name": "Wanderburg — Low-poly 3D (shipped)",
+    "profile": "lowpoly3d",
+    "enabled": true,
+    "description": "THE presentation the game ships: a perspective camera over the rolling fortress, hand-built low-poly meshes, toon bands with environment ink edges, no silhouette outline (on convex hand-built meshes the inverted hull wins the depth tie and paints the object black), no shadow map — every hull drops its own blob shadow. Sun, sky and fog come from the biome (js/Content.js), so the variant pins only the shading model. Camera pose and the zoom range mirror Constants.js (CAMERA_*); the zoom itself stays authored by the game (CAMERA_ZOOM / CAMERA_ZOOM_MOBILE). Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
+    "createdBy": "author",
+    "createdFrom": null,
+    "camera": {
+        "mode": "thirdPerson",
+        "follow": null,
+        "azimuthDeg": -90,
+        "elevationDeg": 55,
+        "fovDeg": 52,
+        "zoomMin": 0.4,
+        "zoomMax": 1.7,
+        "orbit": true
+    },
+    "lighting": {
+        "preset": "lowpoly",
+        "shadows": 0,
+        "toon": 1,
+        "ink": 2,
+        "outline": 0
+    },
+    "materials": {
+        "shading": "toon",
+        "ink": 2,
+        "outline": 0
+    },
+    "environment": {
+        "ground": "terrain",
+        "flatten": 0,
+        "tilePx": 64
+    },
+    "animation": {
+        "style": "procedural-parts"
+    },
+    "ui": {
+        "space": "screen",
+        "scale": 1
+    },
+    "audio": {
+        "spatial": true
+    },
+    "effects": {
+        "particles": 240,
+        "postprocessing": "none"
+    },
+    "performance": {
+        "maxDrawCalls": 420,
+        "maxParticles": 240,
+        "maxShadowLights": 0
+    }
+}

@@ -1,0 +1,55 @@
+{
+    "id": "wanderburg-isometric3d",
+    "name": "Wanderburg — Isometric 3D",
+    "profile": "isometric3d",
+    "enabled": true,
+    "description": "The same valley through a parameterized ORTHOGRAPHIC lens: a fixed 45° azimuth and elevation, no perspective foreshortening, the mountain ring reads as a clean circle. A working alternative look, not a migration target — meshes, toon bands and ink edges are unchanged; only the projection and the framing differ. Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
+    "createdBy": "author",
+    "createdFrom": "wanderburg-lowpoly3d",
+    "camera": {
+        "mode": "isometric",
+        "follow": null,
+        "azimuthDeg": -45,
+        "elevationDeg": 45,
+        "orthoHeightPx": 620,
+        "zoomMin": 0.4,
+        "zoomMax": 1.7,
+        "orbit": false
+    },
+    "lighting": {
+        "preset": "isometric",
+        "shadows": 0,
+        "toon": 1,
+        "ink": 2,
+        "outline": 0
+    },
+    "materials": {
+        "shading": "toon",
+        "ink": 2,
+        "outline": 0
+    },
+    "environment": {
+        "ground": "terrain",
+        "flatten": 0,
+        "tilePx": 64
+    },
+    "animation": {
+        "style": "procedural-parts"
+    },
+    "ui": {
+        "space": "screen",
+        "scale": 1
+    },
+    "audio": {
+        "spatial": true
+    },
+    "effects": {
+        "particles": 240,
+        "postprocessing": "none"
+    },
+    "performance": {
+        "maxDrawCalls": 420,
+        "maxParticles": 240,
+        "maxShadowLights": 0
+    }
+}

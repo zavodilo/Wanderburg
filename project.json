@@ -1,0 +1,57 @@
+{
+    "id": "wanderburg",
+    "name": "Wanderburg",
+    "kit": "ArcEngine",
+    "version": "1.1.0",
+    "schemaVersion": 1,
+    "defaultVariant": "wanderburg-lowpoly3d",
+    "profiles": [
+        "2d",
+        "2.5d",
+        "isometric3d",
+        "lowpoly3d",
+        "full3d"
+    ],
+    "variants": [
+        "wanderburg-2.5d",
+        "wanderburg-2d",
+        "wanderburg-full3d",
+        "wanderburg-isometric3d",
+        "wanderburg-lowpoly3d"
+    ],
+    "variantFiles": {
+        "wanderburg-2.5d": "presentation/variants/wanderburg-2.5d.json",
+        "wanderburg-2d": "presentation/variants/wanderburg-2d.json",
+        "wanderburg-full3d": "presentation/variants/wanderburg-full3d.json",
+        "wanderburg-isometric3d": "presentation/variants/wanderburg-isometric3d.json",
+        "wanderburg-lowpoly3d": "presentation/variants/wanderburg-lowpoly3d.json"
+    },
+    "gameModel": "js/GameSpec.js",
+    "assetRegistry": "GAME_SPEC.assets + presentation/mappings/*.json",
+    "runtime": {
+        "entry": "js/presentation/Runtime.js (PlayArcRuntime.start)",
+        "url": "/?project=wanderburg&variant=<variantId>",
+        "cli": "node tools/arc.mjs run --variant <variantId>",
+        "all": "node tools/arc.mjs run --all"
+    },
+    "shared": {
+        "gameplay": "ONE Game Model for every variant: rules, systems, world, entities, progression, save schema",
+        "entityIds": [
+            "castle",
+            "warden-gate"
+        ],
+        "scenes": [
+            "gameplay",
+            "boss",
+            "main-menu",
+            "loadout",
+            "legacy",
+            "draft",
+            "pause",
+            "settings",
+            "help",
+            "run-over"
+        ]
+    },
+    "generated": "tools/variants.mjs from js/GameSpec.js + presentation/variants/*.json"
+}

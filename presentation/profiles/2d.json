@@ -1,0 +1,153 @@
+{
+    "$generated": "tools/variants.mjs from manifest/render-profiles.json — the profile canon",
+    "$canon": "manifest/render-profiles.json",
+    "id": "2d",
+    "name": "2D",
+    "description": "Classic 2D: top-down, side-scroller, platformer, arena, twin-stick, tile-based. Sprites on the x/z plane (y = 0), orthographic camera, flat lighting, declarative depth.",
+    "projection": "orthographic",
+    "geometry": "sprites",
+    "camera": {
+        "projection": "orthographic",
+        "defaultMode": "topdown",
+        "modes": [
+            "topdown",
+            "side",
+            "platformer"
+        ],
+        "azimuthDeg": -90,
+        "elevationDeg": 90,
+        "orthoHeightPx": 540,
+        "follow": true,
+        "orbit": false,
+        "zoomMin": 0.4,
+        "zoomMax": 4
+    },
+    "worldRepresentation": {
+        "ground": "tilemap",
+        "height": "flat",
+        "tilePx": 64,
+        "obstacles": "tiles",
+        "props": "sprites",
+        "terrainMesh": false
+    },
+    "entityRepresentations": {
+        "primary": "sprite",
+        "allowed": [
+            "sprite",
+            "tile",
+            "particle",
+            "none"
+        ],
+        "byType": {
+            "character": "sprite",
+            "creature": "sprite",
+            "prop": "sprite",
+            "structure": "sprite",
+            "vehicle": "sprite",
+            "projectile": "sprite",
+            "item": "sprite",
+            "terrain": "tile",
+            "trigger": "none",
+            "zone": "none",
+            "effect": "particle"
+        }
+    },
+    "depth": {
+        "model": "declarative",
+        "fields": [
+            "renderLayer",
+            "drawOrder",
+            "zIndex"
+        ],
+        "layers": {
+            "ground": 0,
+            "world": 1,
+            "actors": 2,
+            "overlay": 3,
+            "ui": 4
+        },
+        "note": "draw order is data on the entity, never computed by gameplay code"
+    },
+    "assetRequirements": {
+        "formats": [
+            "png",
+            "webp",
+            "jpg"
+        ],
+        "roleSuffix": ".sprite",
+        "modelFormats": [],
+        "atlas": true,
+        "spriteFrames": true
+    },
+    "lighting": {
+        "profile": "flat"
+    },
+    "animation": {
+        "system": "sprite-frames",
+        "states": [
+            "idle",
+            "walk",
+            "run",
+            "attack",
+            "hurt",
+            "death",
+            "jump"
+        ]
+    },
+    "materials": {
+        "shading": "unlit",
+        "pbr": false,
+        "textures": "diffuse-only"
+    },
+    "physics": {
+        "mode": "grid-2d",
+        "axes": [
+            "x",
+            "z"
+        ],
+        "gravity": 0
+    },
+    "ui": {
+        "space": "screen",
+        "worldSpace": false,
+        "pixelSnap": true,
+        "flat": true
+    },
+    "audio": {
+        "spatial": false,
+        "stereoPanFrom": "x"
+    },
+    "performanceBudget": {
+        "tier": "very-low",
+        "maxDrawCalls": 400,
+        "maxTextureMemoryMB": 64,
+        "maxShadowLights": 0,
+        "maxTextureResolution": 1024,
+        "maxParticles": 200,
+        "maxPolycount": 60000,
+        "maxAnimatedEntities": 32
+    },
+    "capabilities": [
+        "sprites",
+        "sprite-animation",
+        "atlases",
+        "tilemaps",
+        "draw-order",
+        "orthographic",
+        "pixel-art",
+        "screen-space-ui"
+    ],
+    "migrationRules": {
+        "requires": [],
+        "drops": [
+            "models",
+            "skeletal-animation",
+            "shadows",
+            "terrain",
+            "3d-audio",
+            "post-effects"
+        ],
+        "assetStrategy": "use the 2d variant of every role; a missing sprite becomes a generated placeholder",
+        "notes": "y is kept in the model but presented as 0; nothing is deleted from the spec"
+    }
+}

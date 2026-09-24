@@ -1,0 +1,159 @@
+{
+    "$generated": "tools/variants.mjs from manifest/render-profiles.json — the profile canon",
+    "$canon": "manifest/render-profiles.json",
+    "id": "2.5d",
+    "name": "2.5D",
+    "description": "Hybrid: 2D characters (sprites/billboards) in a 3D environment, or 2D sprites on a 3D plane with real depth. Orthographic by default, a slightly tilted perspective is allowed.",
+    "projection": "orthographic",
+    "geometry": "sprites+models",
+    "camera": {
+        "projection": "orthographic",
+        "defaultMode": "isometric",
+        "modes": [
+            "topdown",
+            "side",
+            "isometric",
+            "platformer"
+        ],
+        "azimuthDeg": -90,
+        "elevationDeg": 60,
+        "orthoHeightPx": 540,
+        "tiltDeg": 12,
+        "follow": true,
+        "orbit": false,
+        "zoomMin": 0.4,
+        "zoomMax": 4
+    },
+    "worldRepresentation": {
+        "ground": "plane+sprites",
+        "height": "stepped",
+        "tilePx": 64,
+        "obstacles": "models-or-sprites",
+        "props": "models",
+        "terrainMesh": true
+    },
+    "entityRepresentations": {
+        "primary": "billboard",
+        "allowed": [
+            "sprite",
+            "billboard",
+            "model",
+            "primitive",
+            "tile",
+            "particle",
+            "none"
+        ],
+        "byType": {
+            "character": "billboard",
+            "creature": "billboard",
+            "prop": "model",
+            "structure": "model",
+            "vehicle": "billboard",
+            "projectile": "sprite",
+            "item": "billboard",
+            "terrain": "tile",
+            "trigger": "none",
+            "zone": "none",
+            "effect": "particle"
+        }
+    },
+    "depth": {
+        "model": "hybrid",
+        "fields": [
+            "renderLayer",
+            "drawOrder",
+            "zIndex"
+        ],
+        "layers": {
+            "ground": 0,
+            "world": 1,
+            "actors": 2,
+            "overlay": 3,
+            "ui": 4
+        },
+        "note": "3D depth for models, declarative order inside a sprite layer"
+    },
+    "assetRequirements": {
+        "formats": [
+            "png",
+            "webp",
+            "jpg",
+            "glb"
+        ],
+        "roleSuffix": ".sprite",
+        "modelFormats": [
+            "glb",
+            "fbx"
+        ],
+        "atlas": true,
+        "spriteFrames": true
+    },
+    "lighting": {
+        "profile": "stylized"
+    },
+    "animation": {
+        "system": "sprite-frames+skeletal",
+        "states": [
+            "idle",
+            "walk",
+            "run",
+            "attack",
+            "hurt",
+            "death",
+            "jump"
+        ]
+    },
+    "materials": {
+        "shading": "toon",
+        "pbr": false,
+        "textures": "diffuse"
+    },
+    "physics": {
+        "mode": "grid-2d+height",
+        "axes": [
+            "x",
+            "y",
+            "z"
+        ],
+        "gravity": 1
+    },
+    "ui": {
+        "space": "screen",
+        "worldSpace": false,
+        "pixelSnap": true,
+        "flat": true
+    },
+    "audio": {
+        "spatial": true,
+        "stereoPanFrom": "x"
+    },
+    "performanceBudget": {
+        "tier": "low",
+        "maxDrawCalls": 700,
+        "maxTextureMemoryMB": 128,
+        "maxShadowLights": 1,
+        "maxTextureResolution": 1024,
+        "maxParticles": 500,
+        "maxPolycount": 200000,
+        "maxAnimatedEntities": 48
+    },
+    "capabilities": [
+        "sprites",
+        "billboards",
+        "sprite-animation",
+        "models",
+        "tilemaps",
+        "orthographic",
+        "shadows",
+        "screen-space-ui",
+        "hybrid-depth"
+    ],
+    "migrationRules": {
+        "requires": [
+            "a ground presentation (plane or tiles)"
+        ],
+        "drops": [],
+        "assetStrategy": "actors keep their sprite as a billboard; props and structures take the 2.5d model variant or a primitive",
+        "notes": "the first profile where y is presented, not only stored"
+    }
+}

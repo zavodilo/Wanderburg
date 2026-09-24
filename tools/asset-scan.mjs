@@ -22,10 +22,21 @@ export const EXTRA_REFS = [];
 // index.html = a new line here, otherwise the file will not get into the archive.
 export const CODE_FILES = [
   'index.html',
-  'js/Constants.js', 'js/Objects.js', 'js/UILayout.js', 'js/Sound3D.js', 'js/World3D.js', 'js/Terrain3D.js', 'js/CameraControl.js', 'js/Model3D.js', 'js/Gltf3D.js', 'js/Location3D.js', 'js/SceneSchema.js', 'js/SceneAPI.js', 'js/Procedural3D.js', 'js/Debug3D.js', 'js/UI.js',
-  // Wanderburg's own files, in index.html's order: data, simulation, view, sound, HUD, orchestrator
-  'js/Content.js', 'js/Logic.js', 'js/WanderMesh.js', 'js/WanderView.js', 'js/WanderAudio.js', 'js/Hud.js',
-  'js/Game.js', 'js/main.js',
+  // keep in sync with the <script> order in index.html
+  'js/Constants.js', 'js/GameSpec.js', 'js/Objects.js', 'js/UILayout.js',
+  'js/engine/Sound3D.js', 'js/engine/World3D.js', 'js/engine/Terrain3D.js', 'js/engine/CameraControl.js',
+  'js/engine/Model3D.js', 'js/engine/Gltf3D.js', 'js/engine/Location3D.js', 'js/engine/Procedural3D.js',
+  'js/engine/Debug3D.js', 'js/engine/Sprite2D.js', 'js/engine/Camera3D.js', 'js/engine/Lighting3D.js',
+  'js/engine/Visual3D.js',
+  'js/core/SceneSchema.js', 'js/presentation/RenderProfiles.js', 'js/presentation/Variants.js',
+  'js/core/Coords.js', 'js/core/Entity.js', 'js/core/World.js', 'js/core/GameModel.js',
+  'js/core/Input.js', 'js/core/GameAudio.js', 'js/core/Save.js',
+  'js/presentation/AssetRegistry.js', 'js/presentation/Variant.js', 'js/presentation/RenderProfile.js',
+  'js/presentation/Camera.js', 'js/presentation/Lighting.js', 'js/presentation/Animation.js',
+  'js/presentation/VisualEntity.js', 'js/presentation/Migration.js', 'js/presentation/Runtime.js',
+  'js/profiles/2d/profile.js', 'js/profiles/2.5d/profile.js', 'js/profiles/isometric3d/profile.js',
+  'js/profiles/lowpoly3d/profile.js', 'js/profiles/full3d/profile.js',
+  'js/UI.js', 'js/core/SceneAPI.js', 'js/Game.js', 'js/main.js',
   'libs/simplex-noise.js', 'libs/playcanvas.min.js',
 ];
 
@@ -37,6 +48,35 @@ export const BUILD_EXCLUDE = [
 ];
 
 const SCAN_EXT = new Set(['.js', '.html', '.css']);
+
+// Asset literals are CODE, not prose: a path inside a comment is a documentation example, and
+// counting it as a reference drags dead art into every player archive (the kit's own header
+// example Scene.spawn('assets/models/mill.fbx', …) shipped mill.fbx — 338 KB — with every
+// scaffolded game that never loads a model). String-aware stripper: quotes win over slashes,
+// so 'https://…' inside a literal survives and a quoted path inside a comment does not.
+function stripComments(text) {
+  let out = '', i = 0, quote = null, line = null;
+  const n = text.length;
+  while (i < n) {
+    const c = text[i], d = text[i + 1];
+    if (line === 'block') {
+      if (c === '*' && d === '/') { line = null; i += 2; } else i++;
+      continue;
+    }
+    if (quote) {
+      out += c;
+      if (c === '\\') { out += d || ''; i += 2; continue; }
+      if (c === quote) quote = null;
+      i++;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') { quote = c; out += c; i++; continue; }
+    if (c === '/' && d === '/') { while (i < n && text[i] !== '\n') i++; continue; }
+    if (c === '/' && d === '*') { line = 'block'; i += 2; continue; }
+    out += c; i++;
+  }
+  return out;
+}
 
 async function walk(dir, root, out = []) {
   for (const e of await fsp.readdir(dir, { withFileTypes: true })) {
@@ -64,7 +104,7 @@ export async function collectRefs(root) {
   for (const rel of all) {
     if (!SCAN_EXT.has(path.extname(rel).toLowerCase())) continue;
     if (rel.startsWith('libs/')) continue;           // third-party libraries are left alone
-    const text = await fsp.readFile(path.join(root, rel), 'utf8');
+    const text = stripComments(await fsp.readFile(path.join(root, rel), 'utf8'));
     for (const m of text.matchAll(rx)) {
       refs.add(m[1].split('?')[0].split('#')[0]);
     }
@@ -78,8 +118,14 @@ export async function collectRefs(root) {
   const fileRefs = [];
   for (const r of [...refs].sort()) {
     const clean = r.replace(/\/+$/, '');
-    let isDir = false;
-    try { isDir = (await fsp.stat(path.join(root, clean))).isDirectory(); } catch { /* not on disk — the regular check below */ }
+    // A trailing slash is a folder reference BY SYNTAX, whether or not the folder exists yet:
+    // the code assembles the files inside it from pieces, and the pipeline creates the folder
+    // when it writes placeholders (Migration.VISUAL_DIR = 'assets/visual/'). Treating an absent
+    // folder as a missing FILE reported a 404 that can never happen.
+    let isDir = clean !== r;
+    if (!isDir) {
+      try { isDir = (await fsp.stat(path.join(root, clean))).isDirectory(); } catch { /* not on disk — the regular check below */ }
+    }
     if (isDir) { dirs.push(clean); refs.delete(r); } else fileRefs.push(r);
   }
 

@@ -1,0 +1,123 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "arcengine/manifest/migration-schema.json",
+    "title": "ArcEngine presentation migration: plan, report and journal",
+    "description": "A migration is a change of presentation, never a rewrite of the game. Migration.plan(from, to) builds the plan (dry run, nothing is touched), Migration.apply(from, to) executes it transactionally and writes a journal entry into GAME_SPEC.visualMigrationJournal.",
+    "type": "object",
+    "definitions": {
+        "profileId": { "type": "string", "enum": ["2d", "2.5d", "isometric3d", "lowpoly3d", "full3d"] },
+        "plan": {
+            "type": "object",
+            "description": "the dry-run answer an agent shows a human BEFORE applying a big migration",
+            "required": ["from", "to", "preserve", "change", "generated", "fallbacks", "counts"],
+            "additionalProperties": false,
+            "properties": {
+                "from": { "$ref": "#/definitions/profileId" },
+                "to": { "$ref": "#/definitions/profileId" },
+                "noop": { "type": "boolean", "description": "from === to: nothing to do" },
+                "preserve": { "type": "array", "items": { "type": "string" }, "description": "what stays byte-identical (manifest migration.preserve)" },
+                "change": { "type": "array", "items": { "type": "string" }, "description": "what the profile swap touches (manifest migration.change)" },
+                "generated": { "type": "array", "items": { "type": "string" }, "description": "placeholder assets the migration will create under assets/visual/<to>/" },
+                "fallbacks": { "type": "array", "items": { "type": "string" }, "description": "roles whose target asset is missing and will be shown through a fallback or a placeholder" },
+                "counts": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "entities": { "type": "integer" },
+                        "preserved": { "type": "integer" },
+                        "visualReplacements": { "type": "integer" },
+                        "missingAssets": { "type": "integer" },
+                        "fallbackGeometry": { "type": "integer" },
+                        "cameraChanges": { "type": "integer" },
+                        "lightingChanges": { "type": "integer" },
+                        "worldChanges": { "type": "integer" },
+                        "uiChanges": { "type": "integer" },
+                        "gameplayFilesChanged": { "type": "integer", "description": "must always be 0" }
+                    }
+                },
+                "entities": {
+                    "type": "array",
+                    "description": "per-entity visual replacement: the id never changes",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "id": { "type": "string" },
+                            "type": { "type": "string" },
+                            "role": { "type": ["string", "null"] },
+                            "from": { "type": "object", "properties": { "type": { "type": "string" }, "asset": { "type": ["string", "null"] } } },
+                            "to": { "type": "object", "properties": { "type": { "type": "string" }, "asset": { "type": ["string", "null"] } } },
+                            "resolvedBy": { "type": "string", "enum": ["variant", "fallback", "placeholder", "unresolved"] },
+                            "generated": { "type": ["string", "null"] },
+                            "preserved": { "type": "boolean" }
+                        }
+                    }
+                },
+                "camera": { "type": "object", "description": "{ from: {projection, mode}, to: {projection, mode, azimuthDeg, elevationDeg} }" },
+                "lighting": { "type": "object", "description": "{ from: profileId, to: lightingProfile }" },
+                "world": { "type": "object", "description": "{ from: groundRepresentation, to: groundRepresentation, tiles: n }" },
+                "budget": { "type": "object", "description": "the target profile's performanceBudget + a pass/fail check of the current model against it" },
+                "warnings": { "type": "array", "items": { "type": "string" } },
+                "steps": { "type": "array", "items": { "type": "string" }, "description": "manifest migration.steps, in order" }
+            }
+        },
+        "report": {
+            "type": "object",
+            "description": "what Migration.apply returns (and what tools/migrate.mjs prints as JSON)",
+            "required": ["ok", "from", "to"],
+            "additionalProperties": false,
+            "properties": {
+                "ok": { "type": "boolean" },
+                "from": { "$ref": "#/definitions/profileId" },
+                "to": { "$ref": "#/definitions/profileId" },
+                "dryRun": { "type": "boolean" },
+                "status": { "type": "string", "enum": ["committed", "rolledback", "rejected", "noop"] },
+                "plan": { "$ref": "#/definitions/plan" },
+                "steps": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "string" }, "ok": { "type": "boolean" }, "ms": { "type": "number" }, "detail": { "type": ["string", "null"] } } } },
+                "preserved": {
+                    "type": "object",
+                    "description": "proof that the game did not change",
+                    "properties": {
+                        "entityIds": { "type": "boolean" },
+                        "sceneIds": { "type": "boolean" },
+                        "coordinates": { "type": "boolean" },
+                        "rules": { "type": "boolean" },
+                        "saveSchema": { "type": "boolean" },
+                        "gameplayHash": { "type": "string" }
+                    }
+                },
+                "gameplayTests": { "type": "integer" },
+                "renderTests": { "type": "integer" },
+                "visualTests": { "type": "integer" },
+                "missingAssets": { "type": "integer" },
+                "assetsGenerated": { "type": "array", "items": { "type": "string" } },
+                "fallbacksUsed": { "type": "array", "items": { "type": "string" } },
+                "error": { "type": ["string", "null"] },
+                "ms": { "type": "number" },
+                "rollbackAvailable": { "type": "boolean" }
+            }
+        },
+        "journalEntry": {
+            "type": "object",
+            "description": "one VisualMigrationJournal record (GAME_SPEC.visualMigrationJournal)",
+            "required": ["from", "to", "timestamp"],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string" },
+                "from": { "$ref": "#/definitions/profileId" },
+                "to": { "$ref": "#/definitions/profileId" },
+                "timestamp": { "type": "string", "description": "ISO 8601" },
+                "status": { "type": "string", "enum": ["committed", "rolledback", "rejected"] },
+                "changes": { "type": "array", "items": { "type": "string" } },
+                "assetsGenerated": { "type": "array", "items": { "type": "string" } },
+                "fallbacksUsed": { "type": "array", "items": { "type": "string" } },
+                "counts": { "type": "object" },
+                "preserved": { "type": "object" },
+                "error": { "type": ["string", "null"] },
+                "rollbackAvailable": { "type": "boolean" },
+                "ms": { "type": "number" },
+                "by": { "type": "string", "description": "who ran it: agent id, 'editor' or 'cli'" }
+            }
+        }
+    }
+}

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadScripts, stub } from './browser-scripts.mjs';
 
-const page = loadScripts(['js/Model3D.js'], { pc: stub(), Gltf3D: { is: () => false }, TextDecoder });
+const page = loadScripts(['js/engine/Model3D.js'], { pc: stub(), Gltf3D: { is: () => false }, TextDecoder });
 const Model3D = page.get('Model3D');
 const ab = (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); // pooled Buffers!
 

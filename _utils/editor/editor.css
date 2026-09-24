@@ -458,3 +458,19 @@ main { flex: 1 1 auto; display: flex; min-height: 0; }
 .ui-handle[data-handle="s"] { left: 50%; top: 100%; cursor: ns-resize; }
 .ui-handle[data-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
 .ui-handle[data-handle="w"] { left: 0; top: 50%; cursor: ew-resize; }
+
+/* --- Profile tab: project / profile / variant, migration plans ----------------------- */
+#profile-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line, #223); }
+#profile-title { flex: 1 1 100%; font: 12px/1.5 ui-monospace, monospace; color: var(--text, #cfd8e3); }
+#profile-title .dim { opacity: .6; }
+#profile-title .pp-row + .pp-row { margin-top: 2px; }
+#profile-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+#profile-body { padding: 8px 10px; overflow: auto; }
+.pp-table { width: 100%; border-collapse: collapse; font: 11px/1.5 ui-monospace, monospace; }
+.pp-table td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.06); }
+.pp-k { width: 110px; color: var(--accent, #7cc0c7); white-space: nowrap; }
+.pp-v { color: var(--text, #cfd8e3); word-break: break-word; }
+.pp-plan { margin-top: 10px; padding: 8px; border: 1px solid var(--accent, #7cc0c7); border-radius: 6px; font: 11px/1.6 ui-monospace, monospace; }
+.pp-plan .pp-warn { color: #e0b040; margin-top: 6px; }
+#profile-footer { padding: 8px 10px; opacity: .65; font: 11px/1.5 system-ui, sans-serif; }
+#variant-group select { max-width: 260px; }

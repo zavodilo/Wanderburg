@@ -8,17 +8,18 @@
   "seed": 42,
   "checks": {
     "render": true,
-    "visual": true
+    "visual": true,
+    "variants": true
   },
   "game": {
     "consoleErrors": [],
     "smoke": {
       "ok": true,
-      "uniqueColors16": 169,
+      "uniqueColors16": 168,
       "mean": [
-        83.47270833333333,
-        110.00625,
-        63.37034722222222
+        82.23479166666667,
+        107.805,
+        62.99229166666667
       ],
       "groundish": true,
       "uiChildren": 114,
@@ -28,22 +29,471 @@
   "editor": {
     "consoleErrors": [],
     "smoke": {
-      "panes": 6,
+      "panes": 8,
       "ok": true,
-      "uniqueColors16": 60,
+      "uniqueColors16": 58,
       "mean": [
-        81.07972222222222,
-        112.05770833333334,
-        56.778888888888886
+        90.285,
+        122.34840277777778,
+        64.785625
       ],
       "groundish": true,
       "uiChildren": 115,
       "sceneObjects": -1
     }
   },
+  "variants": {
+    "count": 5,
+    "ok": true,
+    "shared": {
+      "contractHash": "bd634801",
+      "saveSchemaHash": "825d1654",
+      "entityIds": [
+        "castle",
+        "warden-gate"
+      ]
+    },
+    "results": [
+      {
+        "id": "wanderburg-2.5d",
+        "profile": "2.5d",
+        "ok": true,
+        "problems": [],
+        "smoke": {
+          "context": {
+            "project": "wanderburg",
+            "variant": "wanderburg-2.5d",
+            "profile": "2.5d",
+            "url": "/?project=wanderburg&variant=wanderburg-2.5d",
+            "instance": "imufy5er5-9me7",
+            "startedAt": "2026-09-24T19:51:11.834Z",
+            "gameplayHash": "fc95f864",
+            "contractHash": "bd634801",
+            "saveSchemaHash": "825d1654",
+            "headless": false
+          },
+          "profile": "2.5d",
+          "variant": "wanderburg-2.5d",
+          "expectedProjection": "orthographic",
+          "projection": "orthographic",
+          "cameraMode": "topdown",
+          "orthoHeight": 540,
+          "lighting": "flat",
+          "entities": 2,
+          "entityIds": [
+            "castle",
+            "warden-gate"
+          ],
+          "bindings": 0,
+          "byType": {},
+          "placeholders": 0,
+          "sprites": 0,
+          "engineObjects": {},
+          "worldTiles": 0,
+          "uiChildren": 114,
+          "uiSpace": "screen",
+          "gameplayHash": "05e4d694",
+          "contractHash": "bd634801",
+          "bootContractHash": "bd634801",
+          "selfPresented": 2,
+          "saveSchemaHash": "825d1654",
+          "budget": {
+            "ok": true,
+            "budget": {
+              "tier": "low",
+              "maxDrawCalls": 700,
+              "maxTextureMemoryMB": 128,
+              "maxShadowLights": 1,
+              "maxTextureResolution": 1024,
+              "maxParticles": 500,
+              "maxPolycount": 200000,
+              "maxAnimatedEntities": 48
+            },
+            "used": {
+              "maxAnimatedEntities": 1,
+              "maxDrawCalls": 2,
+              "maxShadowLights": 0,
+              "maxParticles": 160,
+              "maxTextureMemoryMB": 0,
+              "maxPolycount": 0,
+              "maxTextureResolution": 0
+            },
+            "warnings": [],
+            "tier": "low"
+          },
+          "uniqueColors16": 182,
+          "mean": [
+            96.17486111111111,
+            136.2095138888889,
+            61.76222222222222
+          ],
+          "stats": {
+            "fps": 414.0378692260599,
+            "drawCalls": null,
+            "triangles": null,
+            "sprites": 0,
+            "objects": 0,
+            "worldObjects": 0,
+            "projection": "orthographic",
+            "orthoHeight": 713.1884849350007
+          },
+          "animation": []
+        }
+      },
+      {
+        "id": "wanderburg-2d",
+        "profile": "2d",
+        "ok": true,
+        "problems": [],
+        "smoke": {
+          "context": {
+            "project": "wanderburg",
+            "variant": "wanderburg-2d",
+            "profile": "2d",
+            "url": "/?project=wanderburg&variant=wanderburg-2d",
+            "instance": "imufy5er5-9me7",
+            "startedAt": "2026-09-24T19:51:42.374Z",
+            "gameplayHash": "fc95f864",
+            "contractHash": "bd634801",
+            "saveSchemaHash": "825d1654",
+            "headless": false
+          },
+          "profile": "2d",
+          "variant": "wanderburg-2d",
+          "expectedProjection": "orthographic",
+          "projection": "orthographic",
+          "cameraMode": "topdown",
+          "orthoHeight": 480,
+          "lighting": "flat",
+          "entities": 2,
+          "entityIds": [
+            "castle",
+            "warden-gate"
+          ],
+          "bindings": 0,
+          "byType": {},
+          "placeholders": 0,
+          "sprites": 0,
+          "engineObjects": {},
+          "worldTiles": 0,
+          "uiChildren": 114,
+          "uiSpace": "screen",
+          "gameplayHash": "d4c1403a",
+          "contractHash": "bd634801",
+          "bootContractHash": "bd634801",
+          "selfPresented": 2,
+          "saveSchemaHash": "825d1654",
+          "budget": {
+            "ok": true,
+            "budget": {
+              "tier": "very-low",
+              "maxDrawCalls": 400,
+              "maxTextureMemoryMB": 64,
+              "maxShadowLights": 0,
+              "maxTextureResolution": 1024,
+              "maxParticles": 200,
+              "maxPolycount": 60000,
+              "maxAnimatedEntities": 32
+            },
+            "used": {
+              "maxAnimatedEntities": 1,
+              "maxDrawCalls": 2,
+              "maxShadowLights": 0,
+              "maxParticles": 120,
+              "maxTextureMemoryMB": 0,
+              "maxPolycount": 0,
+              "maxTextureResolution": 0
+            },
+            "warnings": [],
+            "tier": "very-low"
+          },
+          "uniqueColors16": 209,
+          "mean": [
+            96.306875,
+            134.36388888888888,
+            60.31458333333333
+          ],
+          "stats": {
+            "fps": 399.2379431580971,
+            "drawCalls": null,
+            "triangles": null,
+            "sprites": 0,
+            "objects": 0,
+            "worldObjects": 0,
+            "projection": "orthographic",
+            "orthoHeight": 715.3418424307641
+          },
+          "animation": []
+        }
+      },
+      {
+        "id": "wanderburg-full3d",
+        "profile": "full3d",
+        "ok": true,
+        "problems": [],
+        "smoke": {
+          "context": {
+            "project": "wanderburg",
+            "variant": "wanderburg-full3d",
+            "profile": "full3d",
+            "url": "/?project=wanderburg&variant=wanderburg-full3d",
+            "instance": "imufy5er5-9me7",
+            "startedAt": "2026-09-24T19:52:12.875Z",
+            "gameplayHash": "fc95f864",
+            "contractHash": "bd634801",
+            "saveSchemaHash": "825d1654",
+            "headless": false
+          },
+          "profile": "full3d",
+          "variant": "wanderburg-full3d",
+          "expectedProjection": "perspective",
+          "projection": "perspective",
+          "cameraMode": "thirdPerson",
+          "orthoHeight": null,
+          "lighting": "realistic",
+          "entities": 2,
+          "entityIds": [
+            "castle",
+            "warden-gate"
+          ],
+          "bindings": 0,
+          "byType": {},
+          "placeholders": 0,
+          "sprites": 0,
+          "engineObjects": {},
+          "worldTiles": 0,
+          "uiChildren": 114,
+          "uiSpace": "screen",
+          "gameplayHash": "f657eb72",
+          "contractHash": "bd634801",
+          "bootContractHash": "bd634801",
+          "selfPresented": 2,
+          "saveSchemaHash": "825d1654",
+          "budget": {
+            "ok": true,
+            "budget": {
+              "tier": "high",
+              "maxDrawCalls": 2000,
+              "maxTextureMemoryMB": 512,
+              "maxShadowLights": 3,
+              "maxTextureResolution": 4096,
+              "maxParticles": 4000,
+              "maxPolycount": 2000000,
+              "maxAnimatedEntities": 128
+            },
+            "used": {
+              "maxAnimatedEntities": 1,
+              "maxDrawCalls": 2,
+              "maxShadowLights": 1,
+              "maxParticles": 240,
+              "maxTextureMemoryMB": 0,
+              "maxPolycount": 0,
+              "maxTextureResolution": 0
+            },
+            "warnings": [],
+            "tier": "high"
+          },
+          "uniqueColors16": 208,
+          "mean": [
+            96.65034722222222,
+            125.89763888888889,
+            94.47666666666667
+          ],
+          "stats": {
+            "fps": 415.08558868374746,
+            "drawCalls": null,
+            "triangles": null,
+            "sprites": 0,
+            "objects": 0,
+            "worldObjects": 0,
+            "projection": "perspective",
+            "orthoHeight": null
+          },
+          "animation": []
+        }
+      },
+      {
+        "id": "wanderburg-isometric3d",
+        "profile": "isometric3d",
+        "ok": true,
+        "problems": [],
+        "smoke": {
+          "context": {
+            "project": "wanderburg",
+            "variant": "wanderburg-isometric3d",
+            "profile": "isometric3d",
+            "url": "/?project=wanderburg&variant=wanderburg-isometric3d",
+            "instance": "imufy5er5-9me7",
+            "startedAt": "2026-09-24T19:52:54.868Z",
+            "gameplayHash": "fc95f864",
+            "contractHash": "bd634801",
+            "saveSchemaHash": "825d1654",
+            "headless": false
+          },
+          "profile": "isometric3d",
+          "variant": "wanderburg-isometric3d",
+          "expectedProjection": "orthographic",
+          "projection": "orthographic",
+          "cameraMode": "isometric",
+          "orthoHeight": 620,
+          "lighting": "isometric",
+          "entities": 2,
+          "entityIds": [
+            "castle",
+            "warden-gate"
+          ],
+          "bindings": 0,
+          "byType": {},
+          "placeholders": 0,
+          "sprites": 0,
+          "engineObjects": {},
+          "worldTiles": 0,
+          "uiChildren": 114,
+          "uiSpace": "screen",
+          "gameplayHash": "84e3082b",
+          "contractHash": "bd634801",
+          "bootContractHash": "bd634801",
+          "selfPresented": 2,
+          "saveSchemaHash": "825d1654",
+          "budget": {
+            "ok": true,
+            "budget": {
+              "tier": "medium",
+              "maxDrawCalls": 1200,
+              "maxTextureMemoryMB": 192,
+              "maxShadowLights": 1,
+              "maxTextureResolution": 2048,
+              "maxParticles": 1000,
+              "maxPolycount": 600000,
+              "maxAnimatedEntities": 64
+            },
+            "used": {
+              "maxAnimatedEntities": 1,
+              "maxDrawCalls": 2,
+              "maxShadowLights": 0,
+              "maxParticles": 240,
+              "maxTextureMemoryMB": 0,
+              "maxPolycount": 0,
+              "maxTextureResolution": 0
+            },
+            "warnings": [],
+            "tier": "medium"
+          },
+          "uniqueColors16": 205,
+          "mean": [
+            79.59729166666666,
+            105.90715277777778,
+            52.02868055555555
+          ],
+          "stats": {
+            "fps": 417.9560888383548,
+            "drawCalls": null,
+            "triangles": null,
+            "sprites": 0,
+            "objects": 0,
+            "worldObjects": 0,
+            "projection": "orthographic",
+            "orthoHeight": 714.8938119166246
+          },
+          "animation": []
+        }
+      },
+      {
+        "id": "wanderburg-lowpoly3d",
+        "profile": "lowpoly3d",
+        "ok": true,
+        "problems": [],
+        "smoke": {
+          "context": {
+            "project": "wanderburg",
+            "variant": "wanderburg-lowpoly3d",
+            "profile": "lowpoly3d",
+            "url": "/?project=wanderburg&variant=wanderburg-lowpoly3d",
+            "instance": "imufy5er5-9me7",
+            "startedAt": "2026-09-24T19:53:32.738Z",
+            "gameplayHash": "fc95f864",
+            "contractHash": "bd634801",
+            "saveSchemaHash": "825d1654",
+            "headless": false
+          },
+          "profile": "lowpoly3d",
+          "variant": "wanderburg-lowpoly3d",
+          "expectedProjection": "perspective",
+          "projection": "perspective",
+          "cameraMode": "thirdPerson",
+          "orthoHeight": null,
+          "lighting": "lowpoly",
+          "entities": 2,
+          "entityIds": [
+            "castle",
+            "warden-gate"
+          ],
+          "bindings": 0,
+          "byType": {},
+          "placeholders": 0,
+          "sprites": 0,
+          "engineObjects": {},
+          "worldTiles": 0,
+          "uiChildren": 114,
+          "uiSpace": "screen",
+          "gameplayHash": "3b49eac1",
+          "contractHash": "bd634801",
+          "bootContractHash": "bd634801",
+          "selfPresented": 2,
+          "saveSchemaHash": "825d1654",
+          "budget": {
+            "ok": true,
+            "budget": {
+              "tier": "medium",
+              "maxDrawCalls": 900,
+              "maxTextureMemoryMB": 128,
+              "maxShadowLights": 1,
+              "maxTextureResolution": 1024,
+              "maxParticles": 800,
+              "maxPolycount": 350000,
+              "maxAnimatedEntities": 48
+            },
+            "used": {
+              "maxAnimatedEntities": 1,
+              "maxDrawCalls": 2,
+              "maxShadowLights": 0,
+              "maxParticles": 240,
+              "maxTextureMemoryMB": 0,
+              "maxPolycount": 0,
+              "maxTextureResolution": 0
+            },
+            "warnings": [],
+            "tier": "medium"
+          },
+          "uniqueColors16": 145,
+          "mean": [
+            81.27951388888889,
+            108.74729166666667,
+            62.342708333333334
+          ],
+          "stats": {
+            "fps": 420.4654253055761,
+            "drawCalls": null,
+            "triangles": null,
+            "sprites": 0,
+            "objects": 0,
+            "worldObjects": 0,
+            "projection": "perspective",
+            "orthoHeight": null
+          },
+          "animation": []
+        }
+      }
+    ]
+  },
   "screenshots": [
-    "/tmp/arena/tenants/b1b9dade-d0fd-4843-84d6-397dfe71c34f/sessions/91358a0d-523f-4876-b5f6-b3353d95fcab/workspace/wanderburg/verify/gate-game.png",
-    "/tmp/arena/tenants/b1b9dade-d0fd-4843-84d6-397dfe71c34f/sessions/91358a0d-523f-4876-b5f6-b3353d95fcab/workspace/wanderburg/verify/gate-editor.png"
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-game.png",
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-variant-2.5d.png",
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-variant-2d.png",
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-variant-full3d.png",
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-variant-isometric3d.png",
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-variant-lowpoly3d.png",
+    "/tmp/arena/tenants/a580bab9-e174-48e3-92df-38431db6030c/sessions/b4791739-81df-47a3-88d2-2e924c8ff803/workspace/Wanderburg/verify/gate-editor.png"
   ],
   "failures": []
 }

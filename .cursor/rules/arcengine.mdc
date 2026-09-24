@@ -9,9 +9,12 @@ ArcEngine: zero-dependency 3D browser-game kit on PlayCanvas 2 (vanilla JS, no n
 Read `AGENTS.md` for the work protocol and `CLAUDE.md` for the full invariants.
 
 - Before editing kit areas, read the matching skill in `.agents/skills/<name>/SKILL.md`:
-  `build`, `editor`, `render-conventions`, `sound`, `ui`, `verify`, `world3d`.
+  `2.5d`, `2d`, `animation`, `asset-representation`, `build`, `camera`, `editor`, `full3d`, `isometric3d`, `lighting`, `lowpoly3d`, `materials`, `render-conventions`, `render-profile`, `sound`, `ui`, `verify`, `visual-migration`, `visual-variants`, `world3d`.
 - Engine-level PlayCanvas workflows: vendored skills `add-effects`, `apply-conventions`, `assemble-scene`, `bake-lighting`, `build-app`, `build-hud`, `calibrate-model`, `configure-animation`, `find-examples`, `inspect-glb`, `light-scene`, `manage-game-state`, `override-shader-chunks`, `reduce-draw-calls`, `reuse-scripts`, `verify-pixels`.
 - Never hand-edit generated copies (`.claude/skills/`, `.agents/skills/`, this rule,
   `AGENTS.md`): edit the canon (`claude/skills/`, `claude/vendor/`) and run
   `node tools/sync-skills.mjs`.
-- Verify: `node tools/check.mjs`; rendered look — `Debug3D.lint()` / skill `verify`.
+- Gameplay is renderer-independent: semantic APIs only, never `pc.*` in game code;
+  Profile != Variant; conversions are non-destructive (skill `render-profile`).
+- Verify: `node tools/check.mjs`; rendered look — `Debug3D.lint()` / skill `verify`;
+  profile work — `node tools/check.mjs --profiles`.

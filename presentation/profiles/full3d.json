@@ -1,0 +1,167 @@
+{
+    "$generated": "tools/variants.mjs from manifest/render-profiles.json — the profile canon",
+    "$canon": "manifest/render-profiles.json",
+    "id": "full3d",
+    "name": "Full 3D",
+    "description": "A full 3D game: perspective camera, PBR materials, GLB models with skeletal animation, dynamic lighting, shadows, particles, post effects, terrain with height, 3D audio.",
+    "projection": "perspective",
+    "geometry": "models",
+    "camera": {
+        "projection": "perspective",
+        "defaultMode": "thirdPerson",
+        "modes": [
+            "thirdPerson",
+            "firstPerson",
+            "orbit",
+            "free"
+        ],
+        "azimuthDeg": -90,
+        "elevationDeg": 15,
+        "fovDeg": 52,
+        "follow": true,
+        "orbit": true,
+        "zoomMin": 0.5,
+        "zoomMax": 3
+    },
+    "worldRepresentation": {
+        "ground": "terrain",
+        "height": "heightfield",
+        "tilePx": 64,
+        "obstacles": "models",
+        "props": "models",
+        "terrainMesh": true
+    },
+    "entityRepresentations": {
+        "primary": "model",
+        "allowed": [
+            "model",
+            "primitive",
+            "terrain",
+            "particle",
+            "billboard",
+            "none"
+        ],
+        "byType": {
+            "character": "model",
+            "creature": "model",
+            "prop": "model",
+            "structure": "model",
+            "vehicle": "model",
+            "projectile": "model",
+            "item": "model",
+            "terrain": "terrain",
+            "trigger": "none",
+            "zone": "none",
+            "effect": "particle"
+        }
+    },
+    "depth": {
+        "model": "z-buffer",
+        "fields": [
+            "renderLayer"
+        ],
+        "layers": {
+            "ground": 0,
+            "world": 1,
+            "actors": 2,
+            "overlay": 3,
+            "ui": 4
+        }
+    },
+    "assetRequirements": {
+        "formats": [
+            "glb",
+            "png",
+            "jpg",
+            "webp"
+        ],
+        "roleSuffix": ".visual",
+        "modelFormats": [
+            "glb"
+        ],
+        "atlas": false,
+        "spriteFrames": false,
+        "maxTextureResolution": 4096,
+        "preferred": "glb (the modern format for models; fbx is supported by the kit parser)"
+    },
+    "lighting": {
+        "profile": "realistic"
+    },
+    "animation": {
+        "system": "skeletal",
+        "states": [
+            "idle",
+            "walk",
+            "run",
+            "attack",
+            "hurt",
+            "death",
+            "jump",
+            "fall",
+            "land",
+            "use"
+        ]
+    },
+    "materials": {
+        "shading": "pbr",
+        "pbr": true,
+        "textures": "albedo+normal+metalness"
+    },
+    "physics": {
+        "mode": "3d",
+        "axes": [
+            "x",
+            "y",
+            "z"
+        ],
+        "gravity": 1
+    },
+    "ui": {
+        "space": "screen",
+        "worldSpace": true,
+        "pixelSnap": false,
+        "flat": false
+    },
+    "audio": {
+        "spatial": true,
+        "stereoPanFrom": "3d-position",
+        "occlusion": true
+    },
+    "performanceBudget": {
+        "tier": "high",
+        "maxDrawCalls": 2000,
+        "maxTextureMemoryMB": 512,
+        "maxShadowLights": 3,
+        "maxTextureResolution": 4096,
+        "maxParticles": 4000,
+        "maxPolycount": 2000000,
+        "maxAnimatedEntities": 128
+    },
+    "capabilities": [
+        "models",
+        "glb",
+        "skeletal-animation",
+        "perspective",
+        "pbr",
+        "lighting",
+        "shadows",
+        "terrain",
+        "particles",
+        "post-effects",
+        "3d-audio",
+        "world-space-ui",
+        "screen-space-ui"
+    ],
+    "migrationRules": {
+        "requires": [
+            "model variants or primitive fallbacks for every visible role"
+        ],
+        "drops": [
+            "orthographic",
+            "pixel-art",
+            "draw-order"
+        ],
+        "assetStrategy": "take the full3d variant; fall back to lowpoly3d, then isometric3d, then a primitive capsule/box, then a debug placeholder",
+        "notes": "the richest presentation of the same semantic model"
+    }
+}

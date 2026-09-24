@@ -12,7 +12,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 // scaffold/ (it is in the copy's EXCLUDE list), so gate exactly the files that are present —
 // otherwise check.mjs fails with ENOENT in every generated game.
 const AGENT_FACING = [
-    'js/Game.js', 'js/SceneAPI.js',
+    'js/Game.js', 'js/core/SceneAPI.js',
     'scaffold/starters/empty/js/Game.js',
     'scaffold/starters/survival/js/Game.js',
     'scaffold/starters/empty/js/Objects.js',

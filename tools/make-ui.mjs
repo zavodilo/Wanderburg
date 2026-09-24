@@ -42,7 +42,7 @@ const layout = [
     // =============================== TITLE =============================================
     T('titleBig', 'middle-center', 0, -186, 'WANDERBURG', 66, GOLD, { shadow: '#1a1208' }),
     T('titleSub', 'middle-center', 0, -122, 'Замок на колёсах пожирает долину', 17, PAPER, { alpha: 0.85 }),
-    T('titleVer', 'middle-center', 0, -98, 'v1.0.0 · ArcEngine · PlayCanvas 2', 11, PAPER, { alpha: 0.45 }),
+    T('titleVer', 'middle-center', 0, -98, 'v1.1.0 · ArcEngine · пайплайн', 11, PAPER, { alpha: 0.45 }),
     K('btnStart', 'middle-center', -210, -46, 200, 50, 'В ПОХОД', GREEN),
     K('btnLoadout', 'middle-center', 10, -46, 200, 50, 'СНАРЯЖЕНИЕ', STEEL),
     K('btnLegacy', 'middle-center', -210, 16, 200, 46, 'НАСЛЕДИЕ', INK2),

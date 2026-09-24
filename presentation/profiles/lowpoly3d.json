@@ -1,0 +1,154 @@
+{
+    "$generated": "tools/variants.mjs from manifest/render-profiles.json — the profile canon",
+    "$canon": "manifest/render-profiles.json",
+    "id": "lowpoly3d",
+    "name": "Low-poly 3D",
+    "description": "A full 3D game with a simplified look: perspective camera, low-poly meshes, simple flat materials, one directional light, controlled shadows, mobile-friendly defaults.",
+    "projection": "perspective",
+    "geometry": "models",
+    "camera": {
+        "projection": "perspective",
+        "defaultMode": "thirdPerson",
+        "modes": [
+            "thirdPerson",
+            "orbit",
+            "free",
+            "isometric"
+        ],
+        "azimuthDeg": -90,
+        "elevationDeg": 18,
+        "fovDeg": 52,
+        "follow": true,
+        "orbit": true,
+        "zoomMin": 0.5,
+        "zoomMax": 3
+    },
+    "worldRepresentation": {
+        "ground": "low-poly-terrain",
+        "height": "heightfield",
+        "tilePx": 64,
+        "obstacles": "models",
+        "props": "models",
+        "terrainMesh": true
+    },
+    "entityRepresentations": {
+        "primary": "model",
+        "allowed": [
+            "model",
+            "primitive",
+            "terrain",
+            "particle",
+            "none"
+        ],
+        "byType": {
+            "character": "model",
+            "creature": "model",
+            "prop": "model",
+            "structure": "model",
+            "vehicle": "model",
+            "projectile": "primitive",
+            "item": "model",
+            "terrain": "terrain",
+            "trigger": "none",
+            "zone": "none",
+            "effect": "particle"
+        }
+    },
+    "depth": {
+        "model": "z-buffer",
+        "fields": [
+            "renderLayer"
+        ],
+        "layers": {
+            "ground": 0,
+            "world": 1,
+            "actors": 2,
+            "overlay": 3,
+            "ui": 4
+        }
+    },
+    "assetRequirements": {
+        "formats": [
+            "glb",
+            "png"
+        ],
+        "roleSuffix": ".visual",
+        "modelFormats": [
+            "glb"
+        ],
+        "atlas": false,
+        "spriteFrames": false,
+        "maxTextureResolution": 1024
+    },
+    "lighting": {
+        "profile": "lowpoly"
+    },
+    "animation": {
+        "system": "skeletal",
+        "states": [
+            "idle",
+            "walk",
+            "run",
+            "attack",
+            "hurt",
+            "death",
+            "jump"
+        ]
+    },
+    "materials": {
+        "shading": "stylized",
+        "pbr": false,
+        "textures": "diffuse-or-none"
+    },
+    "physics": {
+        "mode": "3d",
+        "axes": [
+            "x",
+            "y",
+            "z"
+        ],
+        "gravity": 1
+    },
+    "ui": {
+        "space": "screen",
+        "worldSpace": false,
+        "pixelSnap": false,
+        "flat": true
+    },
+    "audio": {
+        "spatial": true,
+        "stereoPanFrom": "x-z"
+    },
+    "performanceBudget": {
+        "tier": "medium",
+        "maxDrawCalls": 900,
+        "maxTextureMemoryMB": 128,
+        "maxShadowLights": 1,
+        "maxTextureResolution": 1024,
+        "maxParticles": 800,
+        "maxPolycount": 350000,
+        "maxAnimatedEntities": 48
+    },
+    "capabilities": [
+        "models",
+        "skeletal-animation",
+        "perspective",
+        "shadows",
+        "terrain",
+        "3d-audio",
+        "mobile",
+        "stylized-materials",
+        "screen-space-ui"
+    ],
+    "migrationRules": {
+        "requires": [
+            "low-poly model variants or primitive fallbacks"
+        ],
+        "drops": [
+            "orthographic",
+            "pixel-art"
+        ],
+        "assetStrategy": "take the lowpoly3d variant; fall back to the isometric3d/full3d model, then to a primitive",
+        "notes": "camera becomes perspective: the same world, a different lens"
+    }
+}

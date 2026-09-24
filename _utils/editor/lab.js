@@ -41,7 +41,26 @@ const Lab = {
         new ResizeObserver(() => World3D.resize()).observe(this.canvas.parentElement);
         World3D.resize();
 
+        // The presentation backend: the editor previews the project's visual variants live
+        // (one shared game model, many presentations). The editor's own camera is left alone:
+        // a variant switch re-presents ground, visuals and lighting, not the viewpoint.
+        if (typeof Visual3D !== 'undefined' && typeof PlayArcRuntime !== 'undefined') {
+            try {
+                Visual3D.attach({ view: this.location.view, location: this.location, camera: this.camera, canvas: this.canvas });
+                PlayArcRuntime.start({ apply: false });
+                RenderProfile.apply({ skipCamera: true });
+            } catch (e) {
+                console.error('PlayArcRuntime:', e);
+            }
+        }
+
         this.bindUi();
+        if (typeof ProfilePanel !== 'undefined') {
+            ProfilePanel.init(this);
+            // The gizmo edits the location records (the editor's canon); the shared game model
+            // follows, so every variant of the project sees the same world.
+            setInterval(() => { if (ProfilePanel.syncFromEditor() > 0) ProfilePanel.refresh(); }, 500);
+        }
         ObjectsPanel.init(this);
         UIPanel.init(this.canvas);
         this.setCameraMode('free');

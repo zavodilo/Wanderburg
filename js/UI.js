@@ -115,11 +115,36 @@ const UI = {
         return e;
     },
 
-    // UI px per CSS px: screen height / UI_REF_HEIGHT.
+    // UI px per CSS px: screen height / UI_REF_HEIGHT, times the presentation factor.
     scale() {
         const ref = typeof UI_REF_HEIGHT !== 'undefined' ? UI_REF_HEIGHT : 720;
         const h = this.canvas ? this.canvas.clientHeight : 0;
-        return ref > 0 && h > 0 ? h / ref : 1;
+        const base = ref > 0 && h > 0 ? h / ref : 1;
+        return base * (UI.extraScale || 1);
+    },
+
+    // --- presentation (a render profile / variant may change HOW the UI is shown) ---------
+    // The UI DEFINITION (UILayout.js records, ids, bindings) is profile-independent: one
+    // HealthBar in 2D and in Full 3D. Only presentation changes — and the DOM HUD is always
+    // screen-space, so 'world'/'mixed' are recorded and reported, not silently pretended.
+    /** 'screen' | 'world' | 'mixed' */
+    space: 'screen',
+    /** Extra layout scale a variant may ask for (1 — the layout as authored). */
+    extraScale: 1,
+
+    /** Set the presentation space (manifest profiles[*].ui.space, variant ui.space). */
+    setSpace(space) {
+        const s = String(space || 'screen');
+        if (!['screen', 'world', 'mixed'].includes(s)) throw new Error('UI.setSpace: screen | world | mixed, got ' + JSON.stringify(space));
+        UI.space = s;
+        return { space: UI.space, screenSpace: true, elements: UI.elements.size };
+    },
+
+    /** Scale the whole HUD by a factor (a variant's ui.scale); 1 restores the layout. */
+    setScale(k) {
+        UI.extraScale = Math.max(0.25, Math.min(4, Number(k) || 1));
+        UI.resize();
+        return UI.extraScale;
     },
 
     // The root covers the canvas; its inner size is the screen in layout px.

@@ -1,0 +1,160 @@
+{
+    "$generated": "tools/variants.mjs from manifest/render-profiles.json — the profile canon",
+    "$canon": "manifest/render-profiles.json",
+    "id": "isometric3d",
+    "name": "Isometric 3D",
+    "description": "A real 3D world seen through a fixed orthographic camera (Diablo / Monument Valley style): 3D geometry, 3D lighting and shadows, grid-oriented gameplay. Camera is parameterized (azimuth, elevation, orthoHeight, target), never hardcoded.",
+    "projection": "orthographic",
+    "geometry": "models",
+    "camera": {
+        "projection": "orthographic",
+        "defaultMode": "isometric",
+        "modes": [
+            "isometric",
+            "topdown",
+            "orbit"
+        ],
+        "azimuthDeg": -90,
+        "elevationDeg": 55,
+        "orthoHeightPx": 540,
+        "follow": true,
+        "orbit": false,
+        "zoomMin": 0.4,
+        "zoomMax": 3,
+        "parameterized": [
+            "azimuthDeg",
+            "elevationDeg",
+            "orthoHeightPx",
+            "target"
+        ]
+    },
+    "worldRepresentation": {
+        "ground": "3d-tiles",
+        "height": "heightfield",
+        "tilePx": 64,
+        "obstacles": "models",
+        "props": "models",
+        "terrainMesh": true
+    },
+    "entityRepresentations": {
+        "primary": "model",
+        "allowed": [
+            "model",
+            "primitive",
+            "billboard",
+            "tile",
+            "particle",
+            "none"
+        ],
+        "byType": {
+            "character": "model",
+            "creature": "model",
+            "prop": "model",
+            "structure": "model",
+            "vehicle": "model",
+            "projectile": "billboard",
+            "item": "model",
+            "terrain": "tile",
+            "trigger": "none",
+            "zone": "none",
+            "effect": "particle"
+        }
+    },
+    "depth": {
+        "model": "z-buffer",
+        "fields": [
+            "renderLayer"
+        ],
+        "layers": {
+            "ground": 0,
+            "world": 1,
+            "actors": 2,
+            "overlay": 3,
+            "ui": 4
+        }
+    },
+    "assetRequirements": {
+        "formats": [
+            "glb",
+            "fbx",
+            "png"
+        ],
+        "roleSuffix": ".visual",
+        "modelFormats": [
+            "glb",
+            "fbx"
+        ],
+        "atlas": false,
+        "spriteFrames": false
+    },
+    "lighting": {
+        "profile": "isometric"
+    },
+    "animation": {
+        "system": "skeletal",
+        "states": [
+            "idle",
+            "walk",
+            "run",
+            "attack",
+            "hurt",
+            "death",
+            "jump"
+        ]
+    },
+    "materials": {
+        "shading": "toon",
+        "pbr": false,
+        "textures": "diffuse"
+    },
+    "physics": {
+        "mode": "3d",
+        "axes": [
+            "x",
+            "y",
+            "z"
+        ],
+        "gravity": 1
+    },
+    "ui": {
+        "space": "screen",
+        "worldSpace": false,
+        "pixelSnap": false,
+        "flat": true
+    },
+    "audio": {
+        "spatial": true,
+        "stereoPanFrom": "x-z"
+    },
+    "performanceBudget": {
+        "tier": "medium",
+        "maxDrawCalls": 1200,
+        "maxTextureMemoryMB": 192,
+        "maxShadowLights": 1,
+        "maxTextureResolution": 2048,
+        "maxParticles": 1000,
+        "maxPolycount": 600000,
+        "maxAnimatedEntities": 64
+    },
+    "capabilities": [
+        "models",
+        "skeletal-animation",
+        "orthographic",
+        "shadows",
+        "terrain",
+        "3d-audio",
+        "grid-gameplay",
+        "screen-space-ui"
+    ],
+    "migrationRules": {
+        "requires": [
+            "model variants or primitive fallbacks for every visible role"
+        ],
+        "drops": [
+            "pixel-art",
+            "draw-order"
+        ],
+        "assetStrategy": "take the isometric3d model variant; a sprite-only role becomes a billboard; a missing model becomes a primitive",
+        "notes": "gameplay keeps saying movement = { x: 0, z: -1 }; the camera decides how north looks"
+    }
+}

@@ -308,7 +308,7 @@ Scene.follow('hero');                                 // camera on the object
 Scene.manifest();                                     // SCENE_SCHEMA
 ```
 
-- `js/SceneAPI.js` + generated `js/SceneSchema.js` (`tools/manifest.mjs`): every call is
+- `js/core/SceneAPI.js` + generated `js/core/SceneSchema.js` (`tools/manifest.mjs`): every call is
   validated against the manifest (constants with editor ranges, record fields) and fails
   with a readable `Error` BEFORE anything reaches the frame — an agent can self-correct
   from the message alone.

@@ -1,0 +1,286 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "arcengine/manifest/asset-schema.json",
+    "title": "ArcEngine semantic asset registry",
+    "description": "Gameplay never points at a file: it points at a ROLE (player.visual, enemy.zombie.visual, world.tree.visual). The registry maps a role to one variant per render profile and resolves it with a fallback chain, so a missing asset degrades to a placeholder instead of breaking the game or blocking a migration.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "roles": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/role"
+            }
+        }
+    },
+    "definitions": {
+        "role": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "role": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9-]+)+$",
+                    "description": "dotted lowercase semantic name: player.visual, enemy.zombie.visual, world.tree.visual, weapon.pistol.visual, ui.cursor.sprite, audio.step"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "visual",
+                        "sprite",
+                        "audio",
+                        "ui",
+                        "data"
+                    ],
+                    "default": "visual"
+                },
+                "entityType": {
+                    "type": "string",
+                    "description": "the entity type this role usually dresses (character, prop, structure…): picks the profile's default representation"
+                },
+                "variants": {
+                    "type": "object",
+                    "description": "one entry per render profile; absent profiles fall back (see fallbackChain)",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/variant"
+                    },
+                    "propertyNames": {
+                        "enum": [
+                            "2d",
+                            "2.5d",
+                            "isometric3d",
+                            "lowpoly3d",
+                            "full3d"
+                        ]
+                    }
+                },
+                "fallbackChain": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "2d",
+                            "2.5d",
+                            "isometric3d",
+                            "lowpoly3d",
+                            "full3d"
+                        ]
+                    },
+                    "description": "profiles to try, in order, when this role has no variant for the active profile; the chain always ends in a generated placeholder"
+                },
+                "placeholder": {
+                    "type": "object",
+                    "description": "what to show when no variant and no fallback file exists",
+                    "additionalProperties": false,
+                    "properties": {
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "sprite",
+                                "box",
+                                "crate",
+                                "tree",
+                                "rock",
+                                "pole",
+                                "capsule",
+                                "tile",
+                                "debug"
+                            ],
+                            "default": "debug"
+                        },
+                        "color": {
+                            "type": "string",
+                            "pattern": "^#[0-9a-fA-F]{6}$"
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "text drawn into a generated placeholder texture"
+                        },
+                        "size": {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            },
+                            "minItems": 2,
+                            "maxItems": 3
+                        }
+                    }
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "variant": {
+            "type": "object",
+            "required": [
+                "asset"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "asset": {
+                    "type": "string",
+                    "pattern": "^assets/",
+                    "description": "literal path from the game root (the asset scanner only sees literals)"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "sprite",
+                        "billboard",
+                        "model",
+                        "primitive",
+                        "tile",
+                        "terrain",
+                        "particle",
+                        "audio",
+                        "none"
+                    ],
+                    "description": "absent — the profile's default for the role's entityType"
+                },
+                "kind": {
+                    "type": "string",
+                    "description": "Procedural3D kind when type is 'primitive'"
+                },
+                "size": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 3,
+                    "description": "[w, h] of a sprite in world px, or a uniform scale factor for a model"
+                },
+                "frames": {
+                    "type": "object",
+                    "description": "sprite-frame animation of a 2D variant: an atlas grid or per-state frame lists",
+                    "additionalProperties": false,
+                    "properties": {
+                        "cols": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "rows": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "fps": {
+                            "type": "number",
+                            "minimum": 1
+                        },
+                        "states": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "clips": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "animation state -> clip name of a model variant ({ run: 'Run', attack: 'Attack_01' })"
+                },
+                "generated": {
+                    "type": "boolean",
+                    "description": "true when the file was produced by a migration placeholder generator, not authored"
+                }
+            }
+        },
+        "resolution": {
+            "type": "object",
+            "description": "what AssetRegistry.resolve(role, profileId) returns",
+            "additionalProperties": false,
+            "properties": {
+                "role": {
+                    "type": "string"
+                },
+                "profile": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "asset": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "resolvedBy": {
+                    "type": "string",
+                    "enum": [
+                        "variant",
+                        "fallback",
+                        "placeholder",
+                        "unresolved"
+                    ]
+                },
+                "fallbackFrom": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "chain": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "placeholder": {
+                    "type": [
+                        "object",
+                        "null"
+                    ]
+                },
+                "missing": {
+                    "type": "boolean"
+                },
+                "clips": {
+                    "type": [
+                        "object",
+                        "null"
+                    ]
+                },
+                "frames": {
+                    "type": [
+                        "object",
+                        "null"
+                    ]
+                },
+                "size": {
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Procedural3D kind when type is 'primitive'"
+                },
+                "overlay": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "the variant visualMappings set this resolution came from"
+                }
+            }
+        }
+    }
+}

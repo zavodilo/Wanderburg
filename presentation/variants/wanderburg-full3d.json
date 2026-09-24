@@ -1,0 +1,50 @@
+{
+    "id": "wanderburg-full3d",
+    "name": "Wanderburg — Cinematic 3D",
+    "profile": "full3d",
+    "enabled": true,
+    "description": "The full stack over the same meshes: perspective camera lower on the horizon, smooth (non-banded) shading, a real shadow map, denser fog. Heavier than the shipped look — the materials are authored for toon bands — so this variant is a mood experiment and a migration target rather than a release candidate. Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
+    "createdBy": "author",
+    "createdFrom": "wanderburg-lowpoly3d",
+    "camera": {
+        "mode": "thirdPerson",
+        "follow": null,
+        "azimuthDeg": -90,
+        "elevationDeg": 32,
+        "fovDeg": 55,
+        "zoomMin": 0.4,
+        "zoomMax": 1.7,
+        "orbit": true
+    },
+    "lighting": {
+        "preset": "realistic",
+        "shadows": 1,
+        "toon": 0,
+        "ink": 0,
+        "outline": 0
+    },
+    "materials": {
+        "shading": "pbr",
+        "ink": 0,
+        "outline": 0
+    },
+    "environment": {
+        "ground": "terrain",
+        "flatten": 0,
+        "tilePx": 64
+    },
+    "animation": {
+        "style": "procedural-parts"
+    },
+    "ui": {
+        "space": "screen",
+        "scale": 1
+    },
+    "audio": {
+        "spatial": true
+    },
+    "effects": {
+        "particles": 240,
+        "postprocessing": "stylized"
+    }
+}

@@ -4,7 +4,7 @@
 // (_utils/editor), which patches only lines of the form `const NAME = <number>;` — keep values
 // as numeric literals (colors — 0xRRGGBB); the editor won't touch a formula.
 // The WANDER_* block at the bottom is the game's balance: hand-edit it, the editor ignores it.
-const GAME_VERSION = '1.0.0'; // build version: ?v= on scripts (tools/build.mjs) and the archive name
+const GAME_VERSION = '1.1.0'; // build version: ?v= on scripts (tools/build.mjs) and the archive name
 
 // localStorage shim: in a sandbox iframe and when site data is blocked, direct access throws SecurityError.
 // All storage access goes through Store only.
@@ -142,6 +142,20 @@ const WORLD3D_TOON_INK_ANGLE = 42;      // °: an edge is drawn if the faces are
 const WORLD3D_TOON_OUTLINE = 0;         // 0 — none, 1 — main objects, 2 — environment too (only when WORLD3D_TOON = 1)
 const WORLD3D_TOON_OUTLINE_ACTOR_WIDTH = 1.5;   // screen px: main objects outline
 const WORLD3D_TOON_OUTLINE_PROP_WIDTH = 1;  // screen px: environment outline (there is a lot of it in the frame — thinner)
+
+// --- VISUAL PROFILE (js/presentation/RenderProfile.js, Variant.js, js/engine/Camera3D.js,
+// Sprite2D.js, Visual3D.js). WHICH profile presents the game is not a constant: it is project
+// data — js/GameSpec.js (renderProfile), presentation/variants/*.json, project.json's
+// defaultVariant and the launch (?variant=…, `arc run --variant …`). The numbers below are the
+// presentation tunables every profile shares (skill render-profile). ---
+const PROFILE_ORTHO_DIST = 3000;        // px: eye distance of an orthographic camera (2D / 2.5D / isometric); must stay inside near..far clip
+const PROFILE_ORTHO_HEIGHT = 540;       // px: half height of the orthographic frustum at zoom 1, used when the canvas size is unknown
+const PROFILE_TILE_PX = 64;             // px: one logical WorldMap tile (the grid step of the world model, in every profile)
+const PROFILE_SPRITE_HEIGHT = 96;       // px: default height of a sprite/billboard whose registry entry has no size
+const PROFILE_SPRITE_ASPECT = 0.75;     // width / height of a generated placeholder sprite
+const PROFILE_SIDE_EYE_PX = 90;         // px: how high above the ground a side-view (side / platformer) camera keeps its look-at point
+const PROFILE_MAX_TILES = 1500;         // tiles: the most world tiles one presentation draws (beyond it the ground texture covers the floor)
+const PROFILE_BUDGET_STRICT = 0;        // 1 — exceeding a profile's performance budget fails a conversion; 0 — it only warns
 
 // --- SAMPLE GAME constants of the kit (kept: the web editor's inspector lists them) ---
 const GAME_RUN_SEC = 8;                 // s: a full energy bar lasts this long while running

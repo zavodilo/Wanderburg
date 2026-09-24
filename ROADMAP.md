@@ -17,7 +17,7 @@
   * Движок перенесён с Babylon.js 9.26 на PlayCanvas 2.22 (`libs/playcanvas.min.js`, UMD, WebGL2): toon-чанки `StandardMaterial` (цветные тени, полосы, rim), чернильные рёбра, inverted-hull контур, слои WORLD/OVERLAY/ACTOR, тени directional light.
   * Координатное соглашение: мир движка — зеркало карты по X (левосторонний PlayCanvas против правосторонней карты); игровая математика осталась в координатах карты (скилл `world3d`).
   * Фаза A (база, PR #3): sync-skills и точки входа агентов (`.claude/skills/`, `.agents/skills/`, `.cursor/rules/`, `AGENTS.md`), вендор `@playcanvas/skills` **v0.3.0**, NOTICE/README.
-  * Фаза B (база, PR #4): `Scene.spawn/move/remove/query/inspect/follow/manifest` + `js/SceneSchema.js` (GENERATED), контрактные тесты, headless-сессия агента.
+  * Фаза B (база, PR #4): `Scene.spawn/move/remove/query/inspect/follow/manifest` + `js/core/SceneSchema.js` (GENERATED), контрактные тесты, headless-сессия агента.
   * Фаза C (база, PR #5): `create-arcengine` (стартеры kit/empty/survival, npm bin, zero deps).
   * Ниже — ДЕЛЬТА к базе: фаза A+ (`agent-manifest.json`), фаза B+ (транзакции `Edit.*`, `Kit.*`/`UI.*`/`Asset.*`, `Scene.seed`, профили check `--render/--visual/--all`, visual gate).
 
@@ -86,7 +86,7 @@ PR #6–#8. Статусы пунктов ревью:
 |---|---|
 | 2, 3, 4, 6 (semantic API, transactions, inspect, seed) | в main/PR #4, #7: `Scene.*`, `Edit.*`, `Scene.journal()`, `Scene.seed/random` |
 | 4 расширенный (фильтры inspect: kind/name/area, entities/camera/warnings) | PR #9 |
-| 5 (schema contract) | в main: `js/SceneSchema.js` + валидация до кадра (PR #4, #7) |
+| 5 (schema contract) | в main: `js/core/SceneSchema.js` + валидация до кадра (PR #4, #7) |
 | 7 (headless gate + машинный отчёт) | PR #7 (gate), PR #9 (`--json=FILE` + скриншоты в отчёте) |
 | 8 (visual assertions: assertVisible/assertInFrame/assertPosition/capture) | PR #9 (`Debug3D.assert*`, `capture()`) |
 | 17 (agent-manifest.json) | PR #6 |
@@ -123,3 +123,50 @@ PR #6–#8. Статусы пунктов ревью:
     тонкого adapter'а glTF (Model3D: load/instantiate/animation/dispose).
   * Минимальная semantic ECS-модель поверх компонентов: `Entity.add('Health'|'EnemyAI', …)`
     без копирования ECS движка; аудио и навигация — по потребности игр.
+
+## Фаза F — Unified Visual Pipeline: Profile + Variant (реализовано)
+
+Цель фазы: разработчик создаёт игру ОДНОЙ семантической моделью, не привязанной к способу
+визуализации, и переключает её между пятью визуальными профилями без переписывания.
+
+```
+ONE GAME MODEL (js/GameSpec.js)
+   ├── PROFILE   тип представления (manifest/render-profiles.json -> RenderProfiles.js)
+   │             2d | 2.5d | isometric3d | lowpoly3d | full3d
+   └── VARIANT   конкретное представление проекта (presentation/variants/<id>.json)
+```
+
+Сделано (PR «Unified visual pipeline» + «Verification»):
+  * Физическое разделение слоёв: `js/engine/` (единственное место с `pc.*`), `js/core/`
+    (семантика: Coords x/y/z, Entity со стабильными id, World/WorldMap с клетками/зонами/
+    триггерами/навигацией, GameModel с правилами/системами/`gameplayHash`, Input с каноническими
+    осями, GameAudio-кью, Save без профиля внутри), `js/presentation/` (AssetRegistry ролей с
+    фолбэк-цепочками и генерируемыми заглушками, Variant, RenderProfile, Migration, Camera,
+    Lighting, GameAnimation, VisualEntity, PlayArcRuntime), `js/profiles/<id>/profile.js`.
+  * Машинные контракты: `manifest/render-profiles.json` (+ game/asset/migration/variant-schema),
+    генераторы `tools/render-profiles.mjs` и `tools/variants.mjs` (project.json, Variants.js,
+    presentation/profiles/*.json) с drift-проверками в `check.mjs`.
+  * Миграции: транзакция из 16 шагов со снапшотом, `Migration.verify` (id/координаты/правила/
+    мир/схема сохранений), rollback, `VisualMigrationJournal`; конверсия НЕдеструктивна.
+  * Движок: ортографическая проекция в CameraController, Sprite2D (экранно-ориентированные
+    квады, свой слой с SORTMODE_CUSTOM, атлас-фреймы, canvas-заглушки), Camera3D, Lighting3D
+    (оверрайды World3D.cfg), Visual3D (бэкенд: биндинги -> спрайты/модели/примитивы, мир),
+    капсула в Procedural3D, presentation-only suppress у Location3D.
+  * Один рантайм — много инстансов: `arc run --all`, `/?project=…&variant=…`, пять вкладок над
+    одним деревом исходников; `PlayArcRuntime.context()` несёт project/variant/profile/хеши.
+  * Редактор: вкладка Profile (проект/профиль/вариант раздельно, живой предпросмотр варианта,
+    Preview/Apply миграции, Create all variants; сервер: /api/save-variant(s), /api/save-journal,
+    /api/regenerate-variants).
+  * Проверки: `tools/profile-matrix.mjs` (матрица профилей и конверсий без браузера),
+    `headless-gate.mjs --variants` (пять инстансов в настоящем браузере, скриншот на профиль),
+    тесты `core-model`, `variants`, `pipeline-layers` (гейт на `pc.*` вне `js/engine/`).
+  * AI-слой: скиллы `render-profile` (оркестрация), `visual-migration`, `visual-variants`,
+    `2d`, `2.5d`, `isometric3d`, `lowpoly3d`, `full3d`, `asset-representation`, `camera`,
+    `lighting`, `materials`, `animation`; фундаментальный принцип в генерируемом `AGENTS.md`
+    и `.cursor/rules`; `renderProfiles` + новый API в `agent-manifest.json`.
+
+Критерий готовности фазы выполнен: сценарии A–F (создать 2D → 2.5D → isometric → lowpoly →
+full3d → снова 2D без бэкапа) и «критический архитектурный тест» (создать игру, три варианта,
+запустить одновременно, изменить gameplay — все варианты получили изменение, изменить один
+вариант — остальные не изменились, конвертировать вариант — исходный жив) прогоняются командами
+`node tools/check.mjs --profiles` и `node tools/arc.mjs run --all`.

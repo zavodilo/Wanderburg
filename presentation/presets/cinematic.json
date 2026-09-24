@@ -1,0 +1,7 @@
+{
+    "id": "cinematic",
+    "description": "A reusable over-the-shoulder look: lower camera, longer lens feel, realistic light, a little fog.",
+    "camera": { "mode": "thirdPerson", "elevationDeg": 12, "distance": 520, "fovDeg": 46 },
+    "lighting": { "preset": "realistic", "fog": 0.0004, "sunIntensity": 1.05, "shadows": 1, "toon": 0 },
+    "effects": { "postprocessing": "cinematic" }
+}

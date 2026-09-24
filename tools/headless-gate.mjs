@@ -24,7 +24,8 @@ const jsonArg = args.find(a => a.startsWith('--json='));
 const JSON_OUT = jsonArg ? jsonArg.slice(7) : null;
 const WANT_RENDER = args.includes('--render') || args.includes('--all');
 const WANT_VISUAL = args.includes('--visual') || args.includes('--all');
-if (!WANT_RENDER && !WANT_VISUAL) { console.error('headless-gate: pass --render, --visual or --all'); process.exit(1); }
+const WANT_VARIANTS = args.includes('--variants') || args.includes('--all');
+if (!WANT_RENDER && !WANT_VISUAL && !WANT_VARIANTS) { console.error('headless-gate: pass --render, --visual, --variants or --all'); process.exit(1); }
 // The screenshots land next to the report: create that directory up front, or the first
 // page.screenshot() dies with ENOENT long before the report itself is written.
 if (jsonArg) {
@@ -49,10 +50,11 @@ const SEED = 42;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const failures = [];
 const note = (m) => console.log('  ' + m);
+const C_RED = '\x1b[31m', C_RESET = '\x1b[0m';
 const report = {
     ok: true, gate: 'headless', viewport: VIEWPORT, seed: SEED,
-    checks: { render: WANT_RENDER, visual: WANT_VISUAL },
-    game: null, editor: null, screenshots: [], failures: []
+    checks: { render: WANT_RENDER, visual: WANT_VISUAL, variants: WANT_VARIANTS },
+    game: null, editor: null, variants: null, screenshots: [], failures: []
 };
 
 const serve = (script, port) => {
@@ -66,18 +68,29 @@ const serve = (script, port) => {
 let smokeEd = null;
 const browser = await puppeteer.launch({
     headless: true,
+    protocolTimeout: 240000,
     args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage']
 });
 
+/** @type {{ page: any, errors: string[] } | null} */
+let _shared = null;
+// Every check navigates ONE page (game, each variant, editor): under a software GL a new
+// target means a new WebGL context, and five of them in a row starve the browser.
 const openPage = async (port, urlPath) => {
-    const page = await browser.newPage();
-    await page.setViewport(VIEWPORT);
-    const errors = [];
-    page.on('pageerror', (e) => errors.push('PAGEERROR ' + (e.stack || e.message).split('\n')[0]));
-    page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text().slice(0, 200)); });
-    await page.goto(`http://127.0.0.1:${port}${urlPath}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    return { page, errors };
+    if (!_shared) {
+        const page = await browser.newPage();
+        await page.setViewport(VIEWPORT);
+        const errors = [];
+        page.on('pageerror', (e) => errors.push('PAGEERROR ' + (e.stack || e.message).split('\n')[0]));
+        page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text().slice(0, 200)); });
+        _shared = { page, errors };
+    }
+    _shared.errors.length = 0;
+    await _shared.page.goto(`http://127.0.0.1:${port}${urlPath}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    return _shared;
 };
+// The page is shared: closing it between checks would kill the rest of the gate.
+const closePage = async () => {};
 
 // pixel/DOM smoke of the current frame, evaluated in the page
 const smoke = (page) => page.evaluate((seed) => {
@@ -107,6 +120,56 @@ const smoke = (page) => page.evaluate((seed) => {
     };
 }, SEED);
 
+// What one runtime instance must prove in the browser: the right projection for its profile,
+// every logical entity bound to a visual, the HUD alive, a non-blank frame — and the SAME
+// gameplay/save hashes as every other variant of the project.
+const variantSmoke = (page) => page.evaluate(() => {
+    World3D.renderFrame();
+    World3D.renderFrame();
+    const canvas = document.querySelector('#world3d');
+    const c2 = document.createElement('canvas');
+    c2.width = 160; c2.height = 90;
+    const g = c2.getContext('2d');
+    g.drawImage(canvas, 0, 0, 160, 90);
+    const d = g.getImageData(0, 0, 160, 90).data;
+    const uniq = new Set();
+    let r = 0, gr = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; gr += d[i + 1]; b += d[i + 2]; n++; uniq.add((d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4)); }
+    const cam = Camera.inspect();
+    return {
+        context: PlayArcRuntime.context(),
+        profile: RenderProfile.id(),
+        variant: Variant.currentId(),
+        expectedProjection: RenderProfile.profile().projection,
+        projection: cam.params.projection,
+        cameraMode: cam.mode,
+        orthoHeight: cam.params.projection === 'orthographic' ? cam.params.orthoHeightPx : null,
+        lighting: Lighting.get().preset,
+        entities: GameModel.entities.length,
+        entityIds: GameModel.entities.map(e => e.id),
+        bindings: VisualEntity.bindings().length,
+        byType: VisualEntity.counts().byType,
+        placeholders: VisualEntity.placeholders().length,
+        sprites: Sprite2D.count(World3D.view),
+        engineObjects: Visual3D.counts(),
+        worldTiles: VisualEntity.worldBinding ? VisualEntity.worldBinding.tiles : 0,
+        uiChildren: document.querySelectorAll('.arc-ui > *').length,
+        uiSpace: UI.space,
+        gameplayHash: GameModel.gameplayHash(),
+        // The cross-instance invariant: gameplayHash covers LIVE model state, so two tabs of one
+        // project diverge as soon as the game plays (a game mirrors its simulation into the model).
+        contractHash: GameModel.contractHash ? GameModel.contractHash() : null,
+        bootContractHash: (PlayArcRuntime.context() || {}).contractHash || null,
+        selfPresented: GameModel.entities.filter(e => e.visualRequest(RenderProfile.id()).type === 'none').length,
+        saveSchemaHash: Save.schemaHash(),
+        budget: RenderProfile.checkBudget(RenderProfile.id()),
+        uniqueColors16: uniq.size,
+        mean: [r / n, gr / n, b / n],
+        stats: Visual3D.stats(),
+        animation: GameAnimation.inspect().playing
+    };
+});
+
 try {
     // --- game -----------------------------------------------------------------
     const gameSrv = await serve('tools/dev-server.mjs', 8291);
@@ -135,7 +198,67 @@ try {
             report.screenshots.push(shot);
         }
         report.game = { consoleErrors: bad, smoke: smokeGame };
-        await page.close();
+        await closePage();
+    }
+    // --- every visual variant of the project, one runtime instance each --------
+    if (WANT_VARIANTS) {
+        // The same server serves every variant: only the query differs (one source tree).
+        const fs0 = await import('node:fs');
+        const pjFile = path.join(ROOT, 'project.json');
+        const pj = fs0.existsSync(pjFile) ? JSON.parse(fs0.readFileSync(pjFile, 'utf8')) : { id: '', variants: [] };
+        const list = (pj.variants || []).map(id => {
+            const f = path.join(ROOT, 'presentation/variants', id + '.json');
+            if (!fs0.existsSync(f)) return null;
+            const v = JSON.parse(fs0.readFileSync(f, 'utf8'));
+            return v.enabled === false ? null : { id: id, profile: v.profile };
+        }).filter(Boolean);
+        if (!list.length) failures.push('variants: project.json lists no enabled variant (node tools/variants.mjs create-all)');
+        const results = [];
+        let shared = null;
+        for (const v of list) {
+            const q = '/index.html' + (pj.id ? '?project=' + encodeURIComponent(pj.id) + '&variant=' : '?variant=') + encodeURIComponent(v.id);
+            const { page, errors } = await openPage(8291, q);
+            try {
+                await page.waitForFunction(() => window.app && window.app.runtime && typeof PlayArcRuntime !== 'undefined' && PlayArcRuntime.started, { timeout: 60000 });
+                await sleep(2500);
+                const s = await variantSmoke(page);
+                const bad = errors.filter(e => !/glReadPixels/.test(e));
+                const problems = [];
+                if (s.variant !== v.id) problems.push('the page presents ' + s.variant + ', not ' + v.id);
+                if (s.profile !== v.profile) problems.push('profile ' + s.profile + ' != variant profile ' + v.profile);
+                if (s.projection !== s.expectedProjection) problems.push('camera projection ' + s.projection + ' != ' + s.expectedProjection);
+                if (!s.entities) problems.push('no logical entities');
+                // A project may present its own entities (representation 'none': a view module on
+                // the engine layer). Those count as presented — the pipeline must not double-draw.
+                if (s.bindings < 1 && s.selfPresented < 1) problems.push('nothing is presented (' + s.bindings + ' visual bindings, ' + s.selfPresented + ' self-presented)');
+                if (s.uniqueColors16 <= 4) problems.push('the frame looks blank (uniqueColors16 ' + s.uniqueColors16 + ')');
+                if (s.uiChildren < 2) problems.push('the HUD is missing (' + s.uiChildren + ' elements)');
+                if (bad.length) problems.push('console: ' + bad.slice(0, 2).join(' | '));
+                const shareKey = s.contractHash || s.gameplayHash;
+                if (!shared) shared = { contractHash: shareKey, saveSchemaHash: s.saveSchemaHash, entityIds: s.entityIds };
+                else {
+                    if (shared.contractHash !== shareKey) problems.push('game contract differs from ' + list[0].id + ' — the variants do not share one game');
+                    if (shared.saveSchemaHash !== s.saveSchemaHash) problems.push('save schema differs — a save would not load in every variant');
+                    if (JSON.stringify(shared.entityIds) !== JSON.stringify(s.entityIds)) problems.push('entity ids differ between variants');
+                }
+                for (const p of problems) failures.push('variant ' + v.id + ': ' + p);
+                if (JSON_OUT) {
+                    const shot = path.resolve(path.dirname(JSON_OUT), 'gate-variant-' + v.profile + '.png');
+                    await page.screenshot({ path: shot });
+                    report.screenshots.push(shot);
+                }
+                note('variant ' + v.id + ': ' + v.profile + ' ' + s.projection + '/' + s.cameraMode +
+                    ' · entities ' + s.entities + ' · bindings ' + s.bindings + ' (' + JSON.stringify(s.byType) + ')' +
+                    (s.selfPresented ? ' · self-presented ' + s.selfPresented : '') +
+                    ' · tiles ' + s.worldTiles + ' · sprites ' + s.sprites + ' · lighting ' + s.lighting +
+                    ' · colors ' + s.uniqueColors16 + (problems.length ? ' · ' + C_RED + problems.length + ' problem(s)' + C_RESET : ' · ok'));
+                results.push({ id: v.id, profile: v.profile, ok: !problems.length, problems: problems, consoleErrors: bad, smoke: s });
+            } catch (e) {
+                failures.push('variant ' + v.id + ': ' + ((e && e.message) || e));
+                results.push({ id: v.id, profile: v.profile, ok: false, problems: [String((e && e.message) || e)], consoleErrors: [], smoke: null });
+            }
+        }
+        report.variants = { count: results.length, ok: results.every(r => r.ok), shared: shared, results: results.map(r => ({ id: r.id, profile: r.profile, ok: r.ok, problems: r.problems, smoke: r.smoke })) };
     }
     gameSrv.kill();
 
@@ -163,10 +286,11 @@ try {
             report.screenshots.push(shot);
         }
         report.editor = { consoleErrors: bad, smoke: smokeEd };
-        await page.close();
+        await closePage();
     }
     edSrv.kill();
 } finally {
+    if (_shared && _shared.page) { try { await _shared.page.close(); } catch (e) { /* already gone */ } }
     await browser.close();
 }
 

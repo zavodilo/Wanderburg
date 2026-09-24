@@ -1,0 +1,55 @@
+{
+    "id": "wanderburg-2d",
+    "name": "Wanderburg — Pixel 2D",
+    "profile": "2d",
+    "enabled": true,
+    "description": "CONVERSION TARGET, the furthest from what ships: orthographic, flat, declarative depth. Wanderburg has no sprite art at all — every mesh is built in code — so this variant documents the migration end point: the roles in GAME_SPEC.assets resolve to GENERATED placeholders until real sprites exist (`arc variant convert --source wanderburg-lowpoly3d --profile 2d --write-placeholders` materializes them). Gameplay, entity ids and the save schema are identical to every other variant. Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
+    "createdBy": "author",
+    "createdFrom": "wanderburg-2.5d",
+    "camera": {
+        "mode": "topdown",
+        "follow": null,
+        "azimuthDeg": -90,
+        "elevationDeg": 88,
+        "orthoHeightPx": 480,
+        "zoomMin": 0.4,
+        "zoomMax": 1.7,
+        "orbit": false
+    },
+    "lighting": {
+        "preset": "flat",
+        "shadows": 0,
+        "toon": 0,
+        "ink": 0,
+        "outline": 0
+    },
+    "materials": {
+        "shading": "unlit",
+        "ink": 0,
+        "outline": 0
+    },
+    "environment": {
+        "ground": "terrain",
+        "flatten": 0,
+        "tilePx": 64
+    },
+    "animation": {
+        "style": "sprite-frames"
+    },
+    "ui": {
+        "space": "screen",
+        "scale": 1
+    },
+    "audio": {
+        "spatial": false
+    },
+    "effects": {
+        "particles": 120,
+        "postprocessing": "none"
+    },
+    "performance": {
+        "maxDrawCalls": 260,
+        "maxParticles": 120,
+        "maxShadowLights": 0
+    }
+}

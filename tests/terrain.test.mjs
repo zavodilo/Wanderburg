@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadScripts, stub } from './browser-scripts.mjs';
 
-const SCRIPTS = ['js/Constants.js', 'libs/simplex-noise.js', 'js/Terrain3D.js'];
+const SCRIPTS = ['js/Constants.js', 'libs/simplex-noise.js', 'js/engine/Terrain3D.js'];
 const EPS = 1e-3;   // the height field is a Float32Array
 
 function makeTerrain(noise = {}, cfg = {}, globals = {}) {
@@ -96,4 +96,43 @@ test('на телефоне клетка не мельче 12 px', () => {
   const phone = { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)', platform: 'iPhone', maxTouchPoints: 5 };
   assert.equal(makeTerrain({}, { cell: 8 }, { navigator: phone }).cell, 12);
   assert.equal(makeTerrain({}, { cell: 8 }).cell, 8);
+});
+
+// The presentation layer asks the location for a ground shape on every variant activation
+// (js/engine/Visual3D.js → world()). That must be idempotent: a rebuild disposes the height
+// field, resettles every object, and destroys terrain a game built itself (Wanderburg bakes a
+// mountain ring into the mesh). Regression: activation used to rebuild unconditionally.
+test('setTerrainNoise: одна и та же форма земли не пересобирает террейн', () => {
+  const page = loadScripts(['js/Constants.js', 'libs/simplex-noise.js', 'js/engine/Terrain3D.js', 'js/engine/Location3D.js'],
+    { pc: stub(), World3D: stub(), Terrain3D: stub() });
+  const Location3D = page.get('Location3D');
+  const loc = Object.create(Location3D.prototype);
+  loc.opts = { noise: null };
+  let builds = 0;
+  loc.terrain = { id: 'authored' };
+  loc.buildTerrain = () => { builds++; loc.terrain = { id: 'rebuilt-' + builds }; return loc.terrain; };
+
+  assert.equal(loc.setTerrainNoise(null).id, 'authored', 'null → null: the constants already rule');
+  assert.equal(builds, 0);
+  assert.equal(loc.setTerrainNoise(undefined).id, 'authored', 'undefined is null');
+  assert.equal(builds, 0);
+
+  loc.setTerrainNoise({ amp: 0 });
+  assert.equal(builds, 1, 'a flat ground (a 2D profile) is a real change');
+  loc.setTerrainNoise({ amp: 0 });
+  assert.equal(builds, 1, '...asked twice, built once');
+
+  loc.setTerrainNoise({ amp: 44, scale: 620, seed: 4 });
+  assert.equal(builds, 2);
+  loc.setTerrainNoise({ seed: 4, amp: 44, scale: 620 });
+  assert.equal(builds, 2, 'key order and numeric spelling do not matter');
+  loc.setTerrainNoise({ amp: 44, scale: 620, seed: 5 });
+  assert.equal(builds, 3, 'another seed is another ground');
+  loc.setTerrainNoise(null);
+  assert.equal(builds, 4, 'back to the constants rebuilds too');
+
+  // Without a terrain there is nothing to preserve: the first ask always builds.
+  loc.terrain = null;
+  loc.setTerrainNoise(null);
+  assert.equal(builds, 5);
 });

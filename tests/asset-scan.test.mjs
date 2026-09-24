@@ -40,6 +40,21 @@ test('литералы в .js/.html/.css: найденные, пропавшие
   assert.deepEqual(scan.unused, ['assets/sounds/hit.mp3', 'assets/unused.png']);
 });
 
+// A folder reference is a folder by SYNTAX (the trailing slash), not by whether it exists yet:
+// js/presentation/Migration.js declares VISUAL_DIR = 'assets/visual/' and the folder appears only
+// when a conversion writes placeholders into it. Regression: an absent folder was reported as a
+// missing FILE, so any project without imported art failed its own asset scan.
+test('ссылка на папку, которой ещё нет, — папка, а не пропавший файл', async () => {
+  const root = project({
+    'Game.js': "const VISUAL_DIR = 'assets/visual/';\nconst built = VISUAL_DIR + '2d/player.png';\nconst real = 'assets/a.png';",
+    'assets/a.png': 'png',
+  });
+  const scan = await collectRefs(root);
+  assert.deepEqual(scan.dirs, ['assets/visual']);
+  assert.deepEqual(scan.refs, ['assets/a.png']);
+  assert.deepEqual(scan.missing, [], 'an absent folder is not a missing asset');
+});
+
 test('libs/, tools/, _utils/ и файлы вне .js/.html/.css ссылками не считаются', async () => {
   const root = project({
     'libs/lib.js': "load('assets/lib.png');",
@@ -56,5 +71,21 @@ test('libs/, tools/, _utils/ и файлы вне .js/.html/.css ссылкам�
 
 test('в проекте нет ссылок на пропавшие ассеты', async () => {
   const scan = await collectRefs(ROOT);
+  assert.deepEqual(scan.missing, []);
+});
+
+// A path in a comment is prose: the kit's own SceneAPI.js header shows Scene.spawn('assets/models/mill.fbx', …)
+// as an example, and that single comment used to put 338 KB of unused model into every archive.
+// Strings still win over slashes: a literal with '//' inside stays a reference.
+test('литерал в комментарии — не ссылка, а строка с "//" внутри — ссылка', async () => {
+  const root = project({
+    'Game.js': "// Scene.spawn('assets/models/mill.fbx', { kind: 'prop' })\n" +
+               "/* multi\n   'assets/models/boxed.fbx'\n   line */\n" +
+               "const A = 'assets/real.png';            // trailing 'assets/trail.png'\n" +
+               "const URL = 'https://x.test/assets/not-a-ref.png';\n",
+    'assets/real.png': 'png',
+  });
+  const scan = await collectRefs(root);
+  assert.deepEqual(scan.refs, ['assets/real.png']);
   assert.deepEqual(scan.missing, []);
 });

@@ -1,6 +1,6 @@
 {
     "kit": "ArcEngine",
-    "gameVersion": "0.1.0",
+    "gameVersion": "1.0.0",
     "apiVersion": {
         "scene": 1,
         "manifest": 1
@@ -24,9 +24,34 @@
     "skills": {
         "kit": [
             {
+                "name": "2.5d",
+                "description": "The 2.5D render profile — hybrid presentation: billboard sprites for characters in a real 3D environment, orthographic tilted camera, stylized lighting, z-buffer depth with declarative sprite order. R",
+                "canon": "claude/skills/2.5d/SKILL.md"
+            },
+            {
+                "name": "2d",
+                "description": "The 2D render profile — orthographic top-down/side camera, sprites and tilemaps on the x/z plane (y presented as 0), flat lighting, declarative depth (renderLayer/drawOrder/zIndex). Read when presenti",
+                "canon": "claude/skills/2d/SKILL.md"
+            },
+            {
+                "name": "animation",
+                "description": "The semantic animation API — shared states (idle/walk/run/attack/hurt/death/jump…), GameAnimation.play/stop/state/subject, and how a state becomes sprite frames in 2D or a skeletal clip in 3D via the ",
+                "canon": "claude/skills/animation/SKILL.md"
+            },
+            {
+                "name": "asset-representation",
+                "description": "The semantic asset registry — roles (player.visual) instead of files, one variant per render profile, fallback chains, generated placeholders, variant visualMappings overlays. Read before adding/chang",
+                "canon": "claude/skills/asset-representation/SKILL.md"
+            },
+            {
                 "name": "build",
                 "description": "Dev server, build and code checks — dev server (tools/dev-server.mjs), archive builder (tools/build.mjs, asset-scan.mjs, zip.mjs), tsc type check and node --test tests (tools/check.mjs, tsconfig.json,",
                 "canon": "claude/skills/build/SKILL.md"
+            },
+            {
+                "name": "camera",
+                "description": "The semantic camera — modes (topdown, side, platformer, isometric, thirdPerson, firstPerson, free, orbit), Camera.follow/mode/zoom/lookAt/orbit, projection switching (orthographic vs perspective) and ",
+                "canon": "claude/skills/camera/SKILL.md"
             },
             {
                 "name": "editor",
@@ -34,13 +59,43 @@
                 "canon": "claude/skills/editor/SKILL.md"
             },
             {
+                "name": "full3d",
+                "description": "The Full 3D render profile — perspective camera, PBR, GLB models with skeletal animation, dynamic lighting and shadows, particles, post effects, terrain with height, spatial audio, optional world-spac",
+                "canon": "claude/skills/full3d/SKILL.md"
+            },
+            {
+                "name": "isometric3d",
+                "description": "The Isometric 3D render profile — real 3D geometry through a fixed PARAMETERIZED orthographic camera (azimuth/elevation/orthoHeight/target), stylized 3D lighting with crisp shadows, grid gameplay. Rea",
+                "canon": "claude/skills/isometric3d/SKILL.md"
+            },
+            {
+                "name": "lighting",
+                "description": "The semantic lighting API — presets flat/stylized/isometric/lowpoly/realistic, Lighting.setProfile/setSun/setAmbient/setShadows/setFog, and how a preset becomes World3D.cfg overrides without rewriting",
+                "canon": "claude/skills/lighting/SKILL.md"
+            },
+            {
+                "name": "lowpoly3d",
+                "description": "The Low-poly 3D render profile — PERSPECTIVE camera, low-poly meshes, flat stylized materials, one directional light, mobile-friendly budgets; the lens difference from isometric3d. Read when presentin",
+                "canon": "claude/skills/lowpoly3d/SKILL.md"
+            },
+            {
+                "name": "materials",
+                "description": "How each render profile shades surfaces — unlit sprites, toon bands, stylized low-poly, PBR — plus the kit's toon/ink/outline switches and the sprite material conventions (unlit, alpha, own layer). Re",
+                "canon": "claude/skills/materials/SKILL.md"
+            },
+            {
                 "name": "render-conventions",
                 "description": "Conventions and hard limits for anything you add to the scene yourself — custom geometry (winding in the mirrored world, culling), normal maps (OpenGL vs DirectX), extra lights (shadow casters, the si",
                 "canon": "claude/skills/render-conventions/SKILL.md"
             },
             {
+                "name": "render-profile",
+                "description": "The orchestration skill of the unified visual pipeline — profiles (2d, 2.5d, isometric3d, lowpoly3d, full3d) vs variants, what each decides, how to read and switch them, and which checks to run. Read ",
+                "canon": "claude/skills/render-profile/SKILL.md"
+            },
+            {
                 "name": "sound",
-                "description": "The game's sound — js/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js, the AUDIO_* constants, tools/make-sounds.mjs ",
+                "description": "The game's sound — js/engine/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js, the AUDIO_* constants, tools/make-soun",
                 "canon": "claude/skills/sound/SKILL.md"
             },
             {
@@ -52,6 +107,16 @@
                 "name": "verify",
                 "description": "How to check a change with your own eyes and numbers — the Browser pane, Debug3D (held view, synchronous frames, benchmark, scene lint, debug render modes), measuring frame cost, reproducing the user'",
                 "canon": "claude/skills/verify/SKILL.md"
+            },
+            {
+                "name": "visual-migration",
+                "description": "Converting a game between render profiles (2d <-> 3d) as a NON-DESTRUCTIVE presentation migration — the 16-step transaction, the dry-run plan, rollback, the preservation proof and the VisualMigrationJ",
+                "canon": "claude/skills/visual-migration/SKILL.md"
+            },
+            {
+                "name": "visual-variants",
+                "description": "The Master Project workflow — inspect/create/clone/convert/compare/run/validate visual variants of ONE game (2D, 2.5D, isometric, low-poly, full 3D) without copying the project; \"create all five varia",
+                "canon": "claude/skills/visual-variants/SKILL.md"
             },
             {
                 "name": "world3d",
@@ -83,6 +148,52 @@
             ]
         },
         "priority": "kit skills win over vendor on any conflict about kit files"
+    },
+    "renderProfiles": {
+        "canon": "manifest/render-profiles.json",
+        "generated": "js/presentation/RenderProfiles.js",
+        "order": [
+            "2d",
+            "2.5d",
+            "isometric3d",
+            "lowpoly3d",
+            "full3d"
+        ],
+        "rule": "Profile != Variant: a variant (presentation/variants/<id>.json) is one concrete presentation of ONE game model; conversions are non-destructive",
+        "coordinates": {
+            "x": "horizontal",
+            "y": "vertical / height",
+            "z": "depth / forward",
+            "note": "2D is the y = 0 case of the same space"
+        },
+        "skills": {
+            "orchestration": "render-profile",
+            "migration": "visual-migration",
+            "variants": "visual-variants",
+            "perProfile": [
+                "2d",
+                "2.5d",
+                "isometric3d",
+                "lowpoly3d",
+                "full3d"
+            ],
+            "presentation": [
+                "asset-representation",
+                "camera",
+                "lighting",
+                "materials",
+                "animation"
+            ]
+        },
+        "commands": {
+            "list": "node tools/arc.mjs variant list",
+            "runtime": "node tools/arc.mjs variant runtime --variant <id>",
+            "plan": "node tools/arc.mjs variant plan --from <p> --to <p>",
+            "convert": "node tools/arc.mjs variant convert --source <variant> --profile <p> [--dry-run] [--write-placeholders]",
+            "runAll": "node tools/arc.mjs run --all",
+            "matrix": "node tools/check.mjs --profiles",
+            "browserGate": "node tools/check.mjs --variants"
+        }
     },
     "api": {
         "scene": [
@@ -125,6 +236,87 @@
             "Asset.preload(path)",
             "Asset.list()",
             "Asset.loaded(path)"
+        ],
+        "gameModel": [
+            "GameModel.boot(spec)",
+            "GameModel.entity(id)",
+            "GameModel.find(filter)",
+            "GameModel.system(id, fn, phase)",
+            "GameModel.run(dt)",
+            "GameModel.contractHash()",
+            "GameModel.gameplayHash()",
+            "GameModel.inspect()"
+        ],
+        "world": [
+            "World.map(spec)",
+            "world.blocked(x, z)",
+            "world.heightAt(x, z)",
+            "world.findPath(a, b)",
+            "world.kindAtWorld(x, z)",
+            "world.toSpec()"
+        ],
+        "input": [
+            "Input.define(map)",
+            "Input.isDown(action)",
+            "Input.pressed(action)",
+            "Input.axis(action)",
+            "Input.on(action, fn)",
+            "Input.pointerWorld()"
+        ],
+        "animation": [
+            "GameAnimation.play(state)",
+            "GameAnimation.play(entity, state)",
+            "GameAnimation.state(id)",
+            "GameAnimation.subject(id)",
+            "GameAnimation.system(profile)"
+        ],
+        "audio": [
+            "GameAudio.play(cue, opts)",
+            "GameAudio.at(cue, pos, opts)",
+            "GameAudio.music(cue)",
+            "GameAudio.volume(channel, v)"
+        ],
+        "save": [
+            "Save.save(slot)",
+            "Save.load(slot)",
+            "Save.serialize()",
+            "Save.restore(data)",
+            "Save.schema()",
+            "Save.schemaHash()"
+        ],
+        "renderProfile": [
+            "RenderProfile.get()",
+            "RenderProfile.set(profileOrVariant)",
+            "RenderProfile.list()",
+            "RenderProfile.config()",
+            "RenderProfile.canConvert(a, b)",
+            "RenderProfile.plan(a, b)",
+            "RenderProfile.convert(a, b)",
+            "RenderProfile.suggest(intent)",
+            "RenderProfile.inspect()"
+        ],
+        "variant": [
+            "Variant.list()",
+            "Variant.current()",
+            "Variant.activate(id)",
+            "Variant.createFromProfile(p)",
+            "Variant.clone(id, newId)",
+            "Variant.convert(opts)",
+            "Variant.compare(a, b)",
+            "Variant.validateAll()"
+        ],
+        "migration": [
+            "Migration.plan(from, to)",
+            "Migration.convert(opts)",
+            "Migration.rollback()",
+            "Migration.journal()",
+            "Migration.summarize()"
+        ],
+        "runtime": [
+            "PlayArcRuntime.start({project, variant})",
+            "PlayArcRuntime.setVariant(id)",
+            "PlayArcRuntime.context()",
+            "PlayArcRuntime.inspect()"
         ]
     },
     "checks": {

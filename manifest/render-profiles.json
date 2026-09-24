@@ -1,0 +1,1171 @@
+{
+    "manifestVersion": 1,
+    "kit": "ArcEngine",
+    "canon": "manifest/render-profiles.json",
+    "generated": "js/presentation/RenderProfiles.js (node tools/render-profiles.mjs)",
+    "note": "Machine-readable canon of the visual profiles. A profile decides HOW the game looks, never HOW it plays: gameplay, entity ids, world logic, rules, progression and the save schema are identical in every profile. Adapters (behaviour) live in js/profiles/<id>/profile.js and read their data from here.",
+    "coordinateSystem": {
+        "x": "horizontal",
+        "y": "vertical / height (up)",
+        "z": "depth / forward",
+        "handedness": "right-handed",
+        "units": "px (1 px = 1 cm of a model file)",
+        "rule": "A 2D game is the y = 0 case of the same space, not a separate space. Logical coordinates never change when the render profile changes.",
+        "engine": "the PlayCanvas world is the map mirror on X: pc(-x, y, z); the kit map record is { x, y: z, h: y } (js/core/Coords.js)"
+    },
+    "order": [
+        "2d",
+        "2.5d",
+        "isometric3d",
+        "lowpoly3d",
+        "full3d"
+    ],
+    "dimension": {
+        "2d": 2,
+        "2.5d": 2.5,
+        "isometric3d": 3,
+        "lowpoly3d": 3,
+        "full3d": 3
+    },
+    "representationTypes": {
+        "sprite": {
+            "engine": "Sprite2D",
+            "geometry": "textured quad",
+            "dimensions": [
+                2,
+                2.5
+            ],
+            "note": "flat quad, faces the camera plane of the profile"
+        },
+        "billboard": {
+            "engine": "Sprite2D",
+            "geometry": "textured quad",
+            "dimensions": [
+                2.5,
+                3
+            ],
+            "note": "sprite that always faces the camera in a 3D world"
+        },
+        "model": {
+            "engine": "Model3D/Gltf3D",
+            "geometry": "mesh (fbx/glb)",
+            "dimensions": [
+                2.5,
+                3
+            ],
+            "note": "static or skinned model with clips"
+        },
+        "primitive": {
+            "engine": "Procedural3D",
+            "geometry": "generated mesh",
+            "dimensions": [
+                2.5,
+                3
+            ],
+            "note": "box/crate/tree/rock/pole/capsule stand-in, no file needed"
+        },
+        "tile": {
+            "engine": "Sprite2D/Procedural3D",
+            "geometry": "quad or low box",
+            "dimensions": [
+                2,
+                2.5,
+                3
+            ],
+            "note": "one logical WorldMap tile"
+        },
+        "terrain": {
+            "engine": "Terrain3D",
+            "geometry": "heightfield mesh",
+            "dimensions": [
+                3
+            ],
+            "note": "the ground of a 3D profile"
+        },
+        "particle": {
+            "engine": "Sprite2D/pc particles",
+            "geometry": "points/quads",
+            "dimensions": [
+                2,
+                2.5,
+                3
+            ],
+            "note": "effect, never gameplay"
+        },
+        "none": {
+            "engine": "-",
+            "geometry": "-",
+            "dimensions": [
+                2,
+                2.5,
+                3
+            ],
+            "note": "logical entity without a visual (trigger, zone, spawn point)"
+        }
+    },
+    "entityTypes": [
+        "character",
+        "creature",
+        "prop",
+        "structure",
+        "vehicle",
+        "projectile",
+        "item",
+        "terrain",
+        "trigger",
+        "zone",
+        "effect"
+    ],
+    "animationStates": [
+        "idle",
+        "walk",
+        "run",
+        "attack",
+        "hurt",
+        "death",
+        "jump",
+        "fall",
+        "land",
+        "use",
+        "carry",
+        "sleep"
+    ],
+    "cameraModes": {
+        "topdown": {
+            "projection": "orthographic",
+            "elevationDeg": 90,
+            "azimuthDeg": -90,
+            "note": "straight down on the x/z plane (2D, isometric-like)"
+        },
+        "side": {
+            "projection": "orthographic",
+            "elevationDeg": 0,
+            "azimuthDeg": -90,
+            "note": "side view: the camera looks along -z (north up the map), so screen right is +x and screen up is +y (height)"
+        },
+        "platformer": {
+            "projection": "orthographic",
+            "elevationDeg": 0,
+            "azimuthDeg": -90,
+            "note": "side view: the camera looks along -z (north up the map), so screen right is +x and screen up is +y (height)"
+        },
+        "isometric": {
+            "projection": "orthographic",
+            "elevationDeg": 55,
+            "azimuthDeg": -90,
+            "note": "fixed tilted ortho camera over a real 3D world"
+        },
+        "thirdPerson": {
+            "projection": "perspective",
+            "elevationDeg": 18,
+            "azimuthDeg": -90,
+            "note": "follows the entity from behind, orbit allowed"
+        },
+        "firstPerson": {
+            "projection": "perspective",
+            "elevationDeg": 0,
+            "azimuthDeg": -90,
+            "note": "camera at the entity eyes, no external visual for it"
+        },
+        "free": {
+            "projection": "perspective",
+            "elevationDeg": 45,
+            "azimuthDeg": -90,
+            "note": "editor/debug flight"
+        },
+        "orbit": {
+            "projection": "perspective",
+            "elevationDeg": 30,
+            "azimuthDeg": -90,
+            "note": "rotates around a target (menus, showcases)"
+        }
+    },
+    "lightingProfiles": {
+        "flat": {
+            "shadows": 0,
+            "toon": 0,
+            "ink": 0,
+            "outline": 0,
+            "sunIntensity": 1,
+            "skyIntensity": 1,
+            "fog": 0,
+            "note": "no shading model: textures as authored (2D)"
+        },
+        "stylized": {
+            "shadows": 1,
+            "toon": 1,
+            "ink": 1,
+            "outline": 1,
+            "sunIntensity": 0.85,
+            "skyIntensity": 0.5,
+            "fog": 0,
+            "note": "banded toon light + ink edges (2.5D)"
+        },
+        "isometric": {
+            "shadows": 1,
+            "toon": 1,
+            "ink": 2,
+            "outline": 2,
+            "sunIntensity": 0.8,
+            "skyIntensity": 0.45,
+            "fog": 0.00012,
+            "note": "stylized 3D light, crisp directional shadows"
+        },
+        "lowpoly": {
+            "shadows": 1,
+            "toon": 1,
+            "ink": 0,
+            "outline": 0,
+            "sunIntensity": 0.9,
+            "skyIntensity": 0.4,
+            "fog": 0.00018,
+            "note": "one directional light, flat-ish colors, cheap shadows"
+        },
+        "realistic": {
+            "shadows": 1,
+            "toon": 0,
+            "ink": 0,
+            "outline": 0,
+            "sunIntensity": 1,
+            "skyIntensity": 0.45,
+            "fog": 0.00032,
+            "note": "full stack: PBR, soft shadows, fog, rim"
+        }
+    },
+    "tileKinds": {
+        "empty": {
+            "blocked": false,
+            "visual": null,
+            "note": "no tile"
+        },
+        "floor": {
+            "blocked": false,
+            "visual": "world.floor.visual",
+            "note": "walkable ground"
+        },
+        "wall": {
+            "blocked": true,
+            "visual": "world.wall.visual",
+            "note": "2D tile / 3D wall mesh"
+        },
+        "water": {
+            "blocked": true,
+            "visual": "world.water.visual",
+            "note": "swimmable only with a rule that says so"
+        },
+        "obstacle": {
+            "blocked": true,
+            "visual": "world.obstacle.visual",
+            "note": "prop-like blocker"
+        },
+        "door": {
+            "blocked": true,
+            "visual": "world.door.visual",
+            "note": "blocked until a rule opens it"
+        },
+        "trigger": {
+            "blocked": false,
+            "visual": null,
+            "note": "logical zone, no visual by default"
+        },
+        "spawn": {
+            "blocked": false,
+            "visual": null,
+            "note": "player spawn point"
+        },
+        "enemySpawn": {
+            "blocked": false,
+            "visual": null,
+            "note": "wave spawn point"
+        },
+        "loot": {
+            "blocked": false,
+            "visual": "world.loot.visual",
+            "note": "pickable drop"
+        }
+    },
+    "profiles": {
+        "2d": {
+            "id": "2d",
+            "name": "2D",
+            "description": "Classic 2D: top-down, side-scroller, platformer, arena, twin-stick, tile-based. Sprites on the x/z plane (y = 0), orthographic camera, flat lighting, declarative depth.",
+            "projection": "orthographic",
+            "geometry": "sprites",
+            "camera": {
+                "projection": "orthographic",
+                "defaultMode": "topdown",
+                "modes": [
+                    "topdown",
+                    "side",
+                    "platformer"
+                ],
+                "azimuthDeg": -90,
+                "elevationDeg": 90,
+                "orthoHeightPx": 540,
+                "follow": true,
+                "orbit": false,
+                "zoomMin": 0.4,
+                "zoomMax": 4
+            },
+            "worldRepresentation": {
+                "ground": "tilemap",
+                "height": "flat",
+                "tilePx": 64,
+                "obstacles": "tiles",
+                "props": "sprites",
+                "terrainMesh": false
+            },
+            "entityRepresentations": {
+                "primary": "sprite",
+                "allowed": [
+                    "sprite",
+                    "tile",
+                    "particle",
+                    "none"
+                ],
+                "byType": {
+                    "character": "sprite",
+                    "creature": "sprite",
+                    "prop": "sprite",
+                    "structure": "sprite",
+                    "vehicle": "sprite",
+                    "projectile": "sprite",
+                    "item": "sprite",
+                    "terrain": "tile",
+                    "trigger": "none",
+                    "zone": "none",
+                    "effect": "particle"
+                }
+            },
+            "depth": {
+                "model": "declarative",
+                "fields": [
+                    "renderLayer",
+                    "drawOrder",
+                    "zIndex"
+                ],
+                "layers": {
+                    "ground": 0,
+                    "world": 1,
+                    "actors": 2,
+                    "overlay": 3,
+                    "ui": 4
+                },
+                "note": "draw order is data on the entity, never computed by gameplay code"
+            },
+            "assetRequirements": {
+                "formats": [
+                    "png",
+                    "webp",
+                    "jpg"
+                ],
+                "roleSuffix": ".sprite",
+                "modelFormats": [],
+                "atlas": true,
+                "spriteFrames": true
+            },
+            "lighting": {
+                "profile": "flat"
+            },
+            "animation": {
+                "system": "sprite-frames",
+                "states": [
+                    "idle",
+                    "walk",
+                    "run",
+                    "attack",
+                    "hurt",
+                    "death",
+                    "jump"
+                ]
+            },
+            "materials": {
+                "shading": "unlit",
+                "pbr": false,
+                "textures": "diffuse-only"
+            },
+            "physics": {
+                "mode": "grid-2d",
+                "axes": [
+                    "x",
+                    "z"
+                ],
+                "gravity": 0
+            },
+            "ui": {
+                "space": "screen",
+                "worldSpace": false,
+                "pixelSnap": true,
+                "flat": true
+            },
+            "audio": {
+                "spatial": false,
+                "stereoPanFrom": "x"
+            },
+            "performanceBudget": {
+                "tier": "very-low",
+                "maxDrawCalls": 400,
+                "maxTextureMemoryMB": 64,
+                "maxShadowLights": 0,
+                "maxTextureResolution": 1024,
+                "maxParticles": 200,
+                "maxPolycount": 60000,
+                "maxAnimatedEntities": 32
+            },
+            "capabilities": [
+                "sprites",
+                "sprite-animation",
+                "atlases",
+                "tilemaps",
+                "draw-order",
+                "orthographic",
+                "pixel-art",
+                "screen-space-ui"
+            ],
+            "migrationRules": {
+                "requires": [],
+                "drops": [
+                    "models",
+                    "skeletal-animation",
+                    "shadows",
+                    "terrain",
+                    "3d-audio",
+                    "post-effects"
+                ],
+                "assetStrategy": "use the 2d variant of every role; a missing sprite becomes a generated placeholder",
+                "notes": "y is kept in the model but presented as 0; nothing is deleted from the spec"
+            }
+        },
+        "2.5d": {
+            "id": "2.5d",
+            "name": "2.5D",
+            "description": "Hybrid: 2D characters (sprites/billboards) in a 3D environment, or 2D sprites on a 3D plane with real depth. Orthographic by default, a slightly tilted perspective is allowed.",
+            "projection": "orthographic",
+            "geometry": "sprites+models",
+            "camera": {
+                "projection": "orthographic",
+                "defaultMode": "isometric",
+                "modes": [
+                    "topdown",
+                    "side",
+                    "isometric",
+                    "platformer"
+                ],
+                "azimuthDeg": -90,
+                "elevationDeg": 60,
+                "orthoHeightPx": 540,
+                "tiltDeg": 12,
+                "follow": true,
+                "orbit": false,
+                "zoomMin": 0.4,
+                "zoomMax": 4
+            },
+            "worldRepresentation": {
+                "ground": "plane+sprites",
+                "height": "stepped",
+                "tilePx": 64,
+                "obstacles": "models-or-sprites",
+                "props": "models",
+                "terrainMesh": true
+            },
+            "entityRepresentations": {
+                "primary": "billboard",
+                "allowed": [
+                    "sprite",
+                    "billboard",
+                    "model",
+                    "primitive",
+                    "tile",
+                    "particle",
+                    "none"
+                ],
+                "byType": {
+                    "character": "billboard",
+                    "creature": "billboard",
+                    "prop": "model",
+                    "structure": "model",
+                    "vehicle": "billboard",
+                    "projectile": "sprite",
+                    "item": "billboard",
+                    "terrain": "tile",
+                    "trigger": "none",
+                    "zone": "none",
+                    "effect": "particle"
+                }
+            },
+            "depth": {
+                "model": "hybrid",
+                "fields": [
+                    "renderLayer",
+                    "drawOrder",
+                    "zIndex"
+                ],
+                "layers": {
+                    "ground": 0,
+                    "world": 1,
+                    "actors": 2,
+                    "overlay": 3,
+                    "ui": 4
+                },
+                "note": "3D depth for models, declarative order inside a sprite layer"
+            },
+            "assetRequirements": {
+                "formats": [
+                    "png",
+                    "webp",
+                    "jpg",
+                    "glb"
+                ],
+                "roleSuffix": ".sprite",
+                "modelFormats": [
+                    "glb",
+                    "fbx"
+                ],
+                "atlas": true,
+                "spriteFrames": true
+            },
+            "lighting": {
+                "profile": "stylized"
+            },
+            "animation": {
+                "system": "sprite-frames+skeletal",
+                "states": [
+                    "idle",
+                    "walk",
+                    "run",
+                    "attack",
+                    "hurt",
+                    "death",
+                    "jump"
+                ]
+            },
+            "materials": {
+                "shading": "toon",
+                "pbr": false,
+                "textures": "diffuse"
+            },
+            "physics": {
+                "mode": "grid-2d+height",
+                "axes": [
+                    "x",
+                    "y",
+                    "z"
+                ],
+                "gravity": 1
+            },
+            "ui": {
+                "space": "screen",
+                "worldSpace": false,
+                "pixelSnap": true,
+                "flat": true
+            },
+            "audio": {
+                "spatial": true,
+                "stereoPanFrom": "x"
+            },
+            "performanceBudget": {
+                "tier": "low",
+                "maxDrawCalls": 700,
+                "maxTextureMemoryMB": 128,
+                "maxShadowLights": 1,
+                "maxTextureResolution": 1024,
+                "maxParticles": 500,
+                "maxPolycount": 200000,
+                "maxAnimatedEntities": 48
+            },
+            "capabilities": [
+                "sprites",
+                "billboards",
+                "sprite-animation",
+                "models",
+                "tilemaps",
+                "orthographic",
+                "shadows",
+                "screen-space-ui",
+                "hybrid-depth"
+            ],
+            "migrationRules": {
+                "requires": [
+                    "a ground presentation (plane or tiles)"
+                ],
+                "drops": [],
+                "assetStrategy": "actors keep their sprite as a billboard; props and structures take the 2.5d model variant or a primitive",
+                "notes": "the first profile where y is presented, not only stored"
+            }
+        },
+        "isometric3d": {
+            "id": "isometric3d",
+            "name": "Isometric 3D",
+            "description": "A real 3D world seen through a fixed orthographic camera (Diablo / Monument Valley style): 3D geometry, 3D lighting and shadows, grid-oriented gameplay. Camera is parameterized (azimuth, elevation, orthoHeight, target), never hardcoded.",
+            "projection": "orthographic",
+            "geometry": "models",
+            "camera": {
+                "projection": "orthographic",
+                "defaultMode": "isometric",
+                "modes": [
+                    "isometric",
+                    "topdown",
+                    "orbit"
+                ],
+                "azimuthDeg": -90,
+                "elevationDeg": 55,
+                "orthoHeightPx": 540,
+                "follow": true,
+                "orbit": false,
+                "zoomMin": 0.4,
+                "zoomMax": 3,
+                "parameterized": [
+                    "azimuthDeg",
+                    "elevationDeg",
+                    "orthoHeightPx",
+                    "target"
+                ]
+            },
+            "worldRepresentation": {
+                "ground": "3d-tiles",
+                "height": "heightfield",
+                "tilePx": 64,
+                "obstacles": "models",
+                "props": "models",
+                "terrainMesh": true
+            },
+            "entityRepresentations": {
+                "primary": "model",
+                "allowed": [
+                    "model",
+                    "primitive",
+                    "billboard",
+                    "tile",
+                    "particle",
+                    "none"
+                ],
+                "byType": {
+                    "character": "model",
+                    "creature": "model",
+                    "prop": "model",
+                    "structure": "model",
+                    "vehicle": "model",
+                    "projectile": "billboard",
+                    "item": "model",
+                    "terrain": "tile",
+                    "trigger": "none",
+                    "zone": "none",
+                    "effect": "particle"
+                }
+            },
+            "depth": {
+                "model": "z-buffer",
+                "fields": [
+                    "renderLayer"
+                ],
+                "layers": {
+                    "ground": 0,
+                    "world": 1,
+                    "actors": 2,
+                    "overlay": 3,
+                    "ui": 4
+                }
+            },
+            "assetRequirements": {
+                "formats": [
+                    "glb",
+                    "fbx",
+                    "png"
+                ],
+                "roleSuffix": ".visual",
+                "modelFormats": [
+                    "glb",
+                    "fbx"
+                ],
+                "atlas": false,
+                "spriteFrames": false
+            },
+            "lighting": {
+                "profile": "isometric"
+            },
+            "animation": {
+                "system": "skeletal",
+                "states": [
+                    "idle",
+                    "walk",
+                    "run",
+                    "attack",
+                    "hurt",
+                    "death",
+                    "jump"
+                ]
+            },
+            "materials": {
+                "shading": "toon",
+                "pbr": false,
+                "textures": "diffuse"
+            },
+            "physics": {
+                "mode": "3d",
+                "axes": [
+                    "x",
+                    "y",
+                    "z"
+                ],
+                "gravity": 1
+            },
+            "ui": {
+                "space": "screen",
+                "worldSpace": false,
+                "pixelSnap": false,
+                "flat": true
+            },
+            "audio": {
+                "spatial": true,
+                "stereoPanFrom": "x-z"
+            },
+            "performanceBudget": {
+                "tier": "medium",
+                "maxDrawCalls": 1200,
+                "maxTextureMemoryMB": 192,
+                "maxShadowLights": 1,
+                "maxTextureResolution": 2048,
+                "maxParticles": 1000,
+                "maxPolycount": 600000,
+                "maxAnimatedEntities": 64
+            },
+            "capabilities": [
+                "models",
+                "skeletal-animation",
+                "orthographic",
+                "shadows",
+                "terrain",
+                "3d-audio",
+                "grid-gameplay",
+                "screen-space-ui"
+            ],
+            "migrationRules": {
+                "requires": [
+                    "model variants or primitive fallbacks for every visible role"
+                ],
+                "drops": [
+                    "pixel-art",
+                    "draw-order"
+                ],
+                "assetStrategy": "take the isometric3d model variant; a sprite-only role becomes a billboard; a missing model becomes a primitive",
+                "notes": "gameplay keeps saying movement = { x: 0, z: -1 }; the camera decides how north looks"
+            }
+        },
+        "lowpoly3d": {
+            "id": "lowpoly3d",
+            "name": "Low-poly 3D",
+            "description": "A full 3D game with a simplified look: perspective camera, low-poly meshes, simple flat materials, one directional light, controlled shadows, mobile-friendly defaults.",
+            "projection": "perspective",
+            "geometry": "models",
+            "camera": {
+                "projection": "perspective",
+                "defaultMode": "thirdPerson",
+                "modes": [
+                    "thirdPerson",
+                    "orbit",
+                    "free",
+                    "isometric"
+                ],
+                "azimuthDeg": -90,
+                "elevationDeg": 18,
+                "fovDeg": 52,
+                "follow": true,
+                "orbit": true,
+                "zoomMin": 0.5,
+                "zoomMax": 3
+            },
+            "worldRepresentation": {
+                "ground": "low-poly-terrain",
+                "height": "heightfield",
+                "tilePx": 64,
+                "obstacles": "models",
+                "props": "models",
+                "terrainMesh": true
+            },
+            "entityRepresentations": {
+                "primary": "model",
+                "allowed": [
+                    "model",
+                    "primitive",
+                    "terrain",
+                    "particle",
+                    "none"
+                ],
+                "byType": {
+                    "character": "model",
+                    "creature": "model",
+                    "prop": "model",
+                    "structure": "model",
+                    "vehicle": "model",
+                    "projectile": "primitive",
+                    "item": "model",
+                    "terrain": "terrain",
+                    "trigger": "none",
+                    "zone": "none",
+                    "effect": "particle"
+                }
+            },
+            "depth": {
+                "model": "z-buffer",
+                "fields": [
+                    "renderLayer"
+                ],
+                "layers": {
+                    "ground": 0,
+                    "world": 1,
+                    "actors": 2,
+                    "overlay": 3,
+                    "ui": 4
+                }
+            },
+            "assetRequirements": {
+                "formats": [
+                    "glb",
+                    "png"
+                ],
+                "roleSuffix": ".visual",
+                "modelFormats": [
+                    "glb"
+                ],
+                "atlas": false,
+                "spriteFrames": false,
+                "maxTextureResolution": 1024
+            },
+            "lighting": {
+                "profile": "lowpoly"
+            },
+            "animation": {
+                "system": "skeletal",
+                "states": [
+                    "idle",
+                    "walk",
+                    "run",
+                    "attack",
+                    "hurt",
+                    "death",
+                    "jump"
+                ]
+            },
+            "materials": {
+                "shading": "stylized",
+                "pbr": false,
+                "textures": "diffuse-or-none"
+            },
+            "physics": {
+                "mode": "3d",
+                "axes": [
+                    "x",
+                    "y",
+                    "z"
+                ],
+                "gravity": 1
+            },
+            "ui": {
+                "space": "screen",
+                "worldSpace": false,
+                "pixelSnap": false,
+                "flat": true
+            },
+            "audio": {
+                "spatial": true,
+                "stereoPanFrom": "x-z"
+            },
+            "performanceBudget": {
+                "tier": "medium",
+                "maxDrawCalls": 900,
+                "maxTextureMemoryMB": 128,
+                "maxShadowLights": 1,
+                "maxTextureResolution": 1024,
+                "maxParticles": 800,
+                "maxPolycount": 350000,
+                "maxAnimatedEntities": 48
+            },
+            "capabilities": [
+                "models",
+                "skeletal-animation",
+                "perspective",
+                "shadows",
+                "terrain",
+                "3d-audio",
+                "mobile",
+                "stylized-materials",
+                "screen-space-ui"
+            ],
+            "migrationRules": {
+                "requires": [
+                    "low-poly model variants or primitive fallbacks"
+                ],
+                "drops": [
+                    "orthographic",
+                    "pixel-art"
+                ],
+                "assetStrategy": "take the lowpoly3d variant; fall back to the isometric3d/full3d model, then to a primitive",
+                "notes": "camera becomes perspective: the same world, a different lens"
+            }
+        },
+        "full3d": {
+            "id": "full3d",
+            "name": "Full 3D",
+            "description": "A full 3D game: perspective camera, PBR materials, GLB models with skeletal animation, dynamic lighting, shadows, particles, post effects, terrain with height, 3D audio.",
+            "projection": "perspective",
+            "geometry": "models",
+            "camera": {
+                "projection": "perspective",
+                "defaultMode": "thirdPerson",
+                "modes": [
+                    "thirdPerson",
+                    "firstPerson",
+                    "orbit",
+                    "free"
+                ],
+                "azimuthDeg": -90,
+                "elevationDeg": 15,
+                "fovDeg": 52,
+                "follow": true,
+                "orbit": true,
+                "zoomMin": 0.5,
+                "zoomMax": 3
+            },
+            "worldRepresentation": {
+                "ground": "terrain",
+                "height": "heightfield",
+                "tilePx": 64,
+                "obstacles": "models",
+                "props": "models",
+                "terrainMesh": true
+            },
+            "entityRepresentations": {
+                "primary": "model",
+                "allowed": [
+                    "model",
+                    "primitive",
+                    "terrain",
+                    "particle",
+                    "billboard",
+                    "none"
+                ],
+                "byType": {
+                    "character": "model",
+                    "creature": "model",
+                    "prop": "model",
+                    "structure": "model",
+                    "vehicle": "model",
+                    "projectile": "model",
+                    "item": "model",
+                    "terrain": "terrain",
+                    "trigger": "none",
+                    "zone": "none",
+                    "effect": "particle"
+                }
+            },
+            "depth": {
+                "model": "z-buffer",
+                "fields": [
+                    "renderLayer"
+                ],
+                "layers": {
+                    "ground": 0,
+                    "world": 1,
+                    "actors": 2,
+                    "overlay": 3,
+                    "ui": 4
+                }
+            },
+            "assetRequirements": {
+                "formats": [
+                    "glb",
+                    "png",
+                    "jpg",
+                    "webp"
+                ],
+                "roleSuffix": ".visual",
+                "modelFormats": [
+                    "glb"
+                ],
+                "atlas": false,
+                "spriteFrames": false,
+                "maxTextureResolution": 4096,
+                "preferred": "glb (the modern format for models; fbx is supported by the kit parser)"
+            },
+            "lighting": {
+                "profile": "realistic"
+            },
+            "animation": {
+                "system": "skeletal",
+                "states": [
+                    "idle",
+                    "walk",
+                    "run",
+                    "attack",
+                    "hurt",
+                    "death",
+                    "jump",
+                    "fall",
+                    "land",
+                    "use"
+                ]
+            },
+            "materials": {
+                "shading": "pbr",
+                "pbr": true,
+                "textures": "albedo+normal+metalness"
+            },
+            "physics": {
+                "mode": "3d",
+                "axes": [
+                    "x",
+                    "y",
+                    "z"
+                ],
+                "gravity": 1
+            },
+            "ui": {
+                "space": "screen",
+                "worldSpace": true,
+                "pixelSnap": false,
+                "flat": false
+            },
+            "audio": {
+                "spatial": true,
+                "stereoPanFrom": "3d-position",
+                "occlusion": true
+            },
+            "performanceBudget": {
+                "tier": "high",
+                "maxDrawCalls": 2000,
+                "maxTextureMemoryMB": 512,
+                "maxShadowLights": 3,
+                "maxTextureResolution": 4096,
+                "maxParticles": 4000,
+                "maxPolycount": 2000000,
+                "maxAnimatedEntities": 128
+            },
+            "capabilities": [
+                "models",
+                "glb",
+                "skeletal-animation",
+                "perspective",
+                "pbr",
+                "lighting",
+                "shadows",
+                "terrain",
+                "particles",
+                "post-effects",
+                "3d-audio",
+                "world-space-ui",
+                "screen-space-ui"
+            ],
+            "migrationRules": {
+                "requires": [
+                    "model variants or primitive fallbacks for every visible role"
+                ],
+                "drops": [
+                    "orthographic",
+                    "pixel-art",
+                    "draw-order"
+                ],
+                "assetStrategy": "take the full3d variant; fall back to lowpoly3d, then isometric3d, then a primitive capsule/box, then a debug placeholder",
+                "notes": "the richest presentation of the same semantic model"
+            }
+        }
+    },
+    "migration": {
+        "policy": "any profile to any profile through the semantic model: no pairwise converters. A migration is presentation only.",
+        "preserve": [
+            "gameplay",
+            "entity_ids",
+            "scene_ids",
+            "world_logic",
+            "logical_coordinates",
+            "rules",
+            "systems",
+            "quests",
+            "inventory",
+            "combat",
+            "economy",
+            "progression",
+            "ui_logic",
+            "save_schema",
+            "audio_cues",
+            "input_actions"
+        ],
+        "change": [
+            "camera",
+            "rendering",
+            "visual_assets",
+            "lighting",
+            "materials",
+            "animation_representation",
+            "world_presentation",
+            "depth_model",
+            "visual_effects"
+        ],
+        "steps": [
+            "validate-source",
+            "snapshot",
+            "preserve-gameplay",
+            "preserve-entity-ids",
+            "preserve-scene-ids",
+            "preserve-coordinates",
+            "preserve-rules",
+            "preserve-save-schema",
+            "replace-visual-mappings",
+            "replace-camera",
+            "replace-lighting",
+            "replace-world-presentation",
+            "generate-placeholders",
+            "validate",
+            "headless-render",
+            "commit"
+        ],
+        "nonDestructive": true,
+        "storage": "assets/visual/<profileId>/ keeps every profile's variants side by side, so 2d -> full3d -> 2d needs no backup",
+        "rollback": "the migration is a transaction: any failed step restores the snapshot (spec, entities, world, registry, camera, lighting) and rethrows",
+        "journal": "VisualMigrationJournal: every migration records { from, to, timestamp, steps, changes, assetsGenerated, fallbacksUsed, preserved, rollbackAvailable }"
+    },
+    "performanceBudgetFields": [
+        "maxDrawCalls",
+        "maxTextureMemoryMB",
+        "maxShadowLights",
+        "maxTextureResolution",
+        "maxParticles",
+        "maxPolycount",
+        "maxAnimatedEntities"
+    ],
+    "aiDecisionRules": {
+        "policy": "never 'game type X = profile Y'. Read the user intent and the visual constraints, pick the most direct match, record the decision in the project spec (js/GameSpec.js).",
+        "signals": [
+            "camera",
+            "art style",
+            "geometry",
+            "depth",
+            "lighting",
+            "animation",
+            "performance target",
+            "user wording"
+        ],
+        "examples": [
+            {
+                "intent": "pixel-art top-down RPG",
+                "profile": "2d"
+            },
+            {
+                "intent": "2D characters in a 3D world",
+                "profile": "2.5d"
+            },
+            {
+                "intent": "Diablo-like camera with a real 3D environment",
+                "profile": "isometric3d"
+            },
+            {
+                "intent": "stylized mobile third-person game with simple geometry",
+                "profile": "lowpoly3d"
+            },
+            {
+                "intent": "cinematic third-person action game",
+                "profile": "full3d"
+            }
+        ],
+        "tieBreak": "the profile that needs the fewest generated placeholders and matches the wording first; record why in GameSpec.renderProfileReason"
+    }
+}

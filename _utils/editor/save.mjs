@@ -312,3 +312,60 @@ export async function saveUI(root, elements) {
   await fsp.writeFile(file, r.src, 'utf8');
   return { ok: true, count: r.count, backup };
 }
+
+// --- visual variants (presentation/variants/*.json) -----------------------------------
+// A variant is presentation CONFIGURATION of the shared game model: the editor writes it as
+// JSON, validates the shape (manifest/variant-schema.json) and never lets it loosen a
+// profile's performance budget. Conversions are non-destructive: saving a variant never
+// removes another one.
+export const VARIANT_ID = /^[a-z0-9][a-z0-9.-]{1,47}$/;
+const VARIANT_FIELDS = ['name', 'description', 'enabled', 'createdBy', 'createdFrom', 'camera', 'lighting',
+  'materials', 'environment', 'animation', 'ui', 'audio', 'effects', 'performance', 'scenes', 'visualMappings'];
+
+export function validateVariant(v, profiles) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return failure('bad_variant');
+  if (!VARIANT_ID.test(String(v.id))) return failure('bad_variant', { field: 'id' });
+  if (!profiles || !profiles.includes(String(v.profile))) return failure('bad_variant', { field: 'profile' });
+  for (const f of ['camera', 'lighting', 'materials', 'environment', 'animation', 'ui', 'audio', 'effects', 'performance', 'scenes']) {
+    if (v[f] != null && (typeof v[f] !== 'object' || Array.isArray(v[f]))) return failure('bad_variant', { field: f });
+  }
+  return { ok: true };
+}
+
+function variantFile(root, id) {
+  return path.join(root, 'presentation', 'variants', String(id) + '.json');
+}
+
+/** Write one variant config (pretty JSON, trailing newline). */
+export async function saveVariant(root, variant, profiles) {
+  const check = validateVariant(variant, profiles);
+  if (!check.ok) return check;
+  const file = variantFile(root, variant.id);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const body = {};
+  for (const k of ['id', 'profile', ...VARIANT_FIELDS]) if (variant[k] !== undefined) body[k] = variant[k];
+  await fsp.writeFile(file, JSON.stringify(body, null, 4) + '\n', 'utf8');
+  return { ok: true, path: 'presentation/variants/' + variant.id + '.json' };
+}
+
+/** Write several variants (Create All). Unknown ids are rejected; nothing is deleted. */
+export async function saveVariants(root, variants, profiles) {
+  if (!Array.isArray(variants)) return failure('bad_variant');
+  const written = [];
+  for (const v of variants) {
+    const r = await saveVariant(root, v, profiles);
+    if (!r.ok) return r;
+    written.push(r.path);
+  }
+  return { ok: true, count: written.length, paths: written };
+}
+
+/** The VisualMigrationJournal (presentation/migration-journal.json). */
+export async function saveJournal(root, journal) {
+  if (!Array.isArray(journal)) return failure('bad_journal');
+  const clean = journal.slice(-100).map(e => (e && typeof e === 'object' ? e : null)).filter(Boolean);
+  const file = path.join(root, 'presentation', 'migration-journal.json');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  await fsp.writeFile(file, JSON.stringify(clean, null, 4) + '\n', 'utf8');
+  return { ok: true, count: clean.length };
+}

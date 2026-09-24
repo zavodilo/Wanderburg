@@ -14,7 +14,8 @@
 Сделано на [ArcEngine (PlayArcEngine)](https://github.com/zavodilo/PlayArcEngine) —
 zero-dependency наборе для 3D-игр в браузере (PlayCanvas 2, vanilla JS, без npm и без
 сборки). Вся геометрия, звук и музыка игры **синтезируются кодом**: в репозитории нет ни
-одного привезённого арт- или аудиофайла, кроме земных текстур набора.
+одного привезённого арт- или аудиофайла, кроме земных текстур набора (и `assets/models/character.glb` —
+фикстура теста glTF, которую байт в байт собирает `tools/make-character.mjs`).
 
 ---
 
@@ -81,7 +82,24 @@ node tools/arc.mjs build         # dist/wanderburg-<version>.zip — играб�
 
 ## Архитектура
 
-Набор ArcEngine остаётся нетронутым движком; игра лежит в шести файлах поверх него:
+Набор ArcEngine (единый визуальный пайплайн) остаётся нетронутым движком; игра лежит своими
+файлами поверх него и говорит с ним через семантический слой:
+
+| Слой набора | Где в игре |
+|---|---|
+| `js/engine/` — единственное место, знающее `pc.*` (PlayCanvas) | как в наборе; игра ничего в нём не правит |
+| `js/core/` — модель игры без рендера (`GameModel`, `World`, `Entity`, `Save`, `Scene`) | контракт проекта: `js/GameSpec.js` загружается в `GameModel` |
+| `js/presentation/` — профили, варианты, миграции, рантайм | `presentation/variants/wanderburg-*.json` — пять презентаций ОДНОЙ игры |
+| `js/profiles/` — адаптеры профилей | как в наборе |
+| игровой код | `js/Logic.js` (истина), `js/WanderView.js`/`js/WanderMesh.js` (картина), `js/Game.js` (оркестратор) |
+
+Игра **сама рисует свои сущности**: записи `GAME_SPEC.entities` несут
+`visual.representation: 'none'`, поэтому пайплайн не рисует вторую копию замка, а
+`VisualEntity.sync` считает их как *self-presented* (видно в `arc variant list`,
+матрице профилей и headless-гейте). Реестр ролей (`GAME_SPEC.assets`) при этом полный: он —
+машинная цель миграции, «что чем станет в другом профиле».
+
+Игровые файлы поверх движка:
 
 | Файл | Роль |
 |---|---|
@@ -96,21 +114,51 @@ node tools/arc.mjs build         # dist/wanderburg-<version>.zip — играб�
 
 Инварианты (их держат тесты):
 
-* `Game.js` не пишет `pc.*` (контракт набора для агентного кода, `tests/apigate.test.mjs`);
-  вся работа с движком — в `WanderView.js`/`WanderMesh.js`.
+* `Game.js` не пишет `pc.*` (контракт набора для агентного кода, `tests/apigate.test.mjs`) и не
+  ветвится по профилю рендера (`tests/pipeline-layers.test.mjs`); вся работа с движком — в
+  `WanderView.js`/`WanderMesh.js`.
+* Симуляция остаётся владельцем истины: `js/Game.js` зеркалит в `GameModel` только то, что
+  переживает кадр (замок игрока, врата вардена, прогрессию, активную сцену) — координаты через
+  `Coords` (карта игры — зеркало канонического пространства набора).
 * Симуляция детерминирована от сида (`WB.RNG`, mulberry32): один сид — один забег.
 * HUD — только данные: раскладка в `js/UILayout.js` (пишется редактором или `tools/make-ui.mjs`
   в байт-точном формате редактора), код лишь кормит элементы по id.
 * Числа баланса живут только в `Constants.js`/`Content.js`; тест `tests/wanderburg.test.mjs`
   сторожит, в частности, разделение «оружейных» полей модуля и полей-модификаторов.
 
+### Единый визуальный пайплайн: одна игра — пять презентаций
+
+Отгружаемая презентация — профиль `lowpoly3d` (`wanderburg-lowpoly3d`): перспективная камера,
+лоу-поли меши, тон-полосы с чернильными рёбрами, без карты теней (у каждого корпуса своя
+blob-тень). Вариант несёт ровно те числа камеры и шейдинга, что живут в `Constants.js`, поэтому
+применение пайплайна ничего не меняет на экране — оно его документирует и проверяет.
+
+```
+node tools/arc.mjs run                 # игра (вариант по умолчанию)
+node tools/arc.mjs run --all           # пять вкладок: ОДНО дерево, пять презентаций
+node tools/arc.mjs run --variant wanderburg-isometric3d
+node tools/arc.mjs variant list        # варианты, общий contract hash и схема сохранений
+node tools/arc.mjs check --profiles    # матрица профилей и конверсий без браузера
+node tools/arc.mjs variant plan --from wanderburg-lowpoly3d --to 2d   # сухой прогон миграции
+node tools/arc.mjs variant convert --source wanderburg-lowpoly3d --profile 2d --write-placeholders
+```
+
+Варианты `wanderburg-2d` и `wanderburg-2.5d` — **цели миграции**, а не готовые презентации:
+у игры нет спрайтовой графики (все меши строятся кодом), поэтому в них реестр ролей
+разрешается в генерируемые заглушки (`--write-placeholders` материализует их в PNG), а мир
+остаётся трёхмерным полем высот: горное кольцо — часть геймплея, и ни один профиль его не
+плоскает. `contractHash` и `saveSchemaHash` одинаковы во всех пяти вариантах — машинное
+доказательство, что игра одна.
+
 ### Проверка
 
 ```
-node tools/check.mjs             # tsc-типы JSDoc + 111 тестов + скиллы + манифест
+node tools/check.mjs             # tsc-типы JSDoc + тесты + скиллы + манифесты + drift вариантов
+node tools/check.mjs --profiles  # матрица профилей и конверсий (headless)
+node tools/check.mjs --all       # релизный гейт: + headless-рендер, visual smoke, варианты в браузере
 node --test tests/wanderburg.test.mjs    # тесты самой игры (детерминизм, генерация, бой, чертёж)
-NODE_PATH=<puppeteer> node tools/headless-gate.mjs --all   # headless-рендер + visual smoke
-node verify/shots.mjs 40         # скриншоты живого забега с автопилотом (verify/play-*.png)
+NODE_PATH=<puppeteer> node tools/headless-gate.mjs --all   # то же напрямую (puppeteer — dev-only)
+node verify/shots.mjs 40         # скриншоты живого забега с автопилотом (verify/mig-*.png)
 node verify/smoke.mjs 4242 4     # автопилот играет забеги: темп, ступени, смертность
 node verify/bossrun.mjs 777      # цепочка «варден → следующий рубеж» end-to-end
 ```

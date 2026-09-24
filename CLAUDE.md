@@ -24,11 +24,24 @@ JS + PlayCanvas 2 (`libs/playcanvas.min.js`, локально), ноль npm-з�
 |---|---|
 | `js/` (`World3D.js`, `Terrain3D.js`, `Location3D.js`, `CameraControl.js`, `Model3D.js`, `Gltf3D.js`, `Procedural3D.js`, `Objects.js`, `Game.js`, `main.js`), объекты в сцене, модели GLB и клипы анимации, свет/тени/toon/контур, константы `CAMERA_*`/`WORLD3D_*`/`TERRAIN_*`/`LOCATION_*` | `claude/skills/world3d/SKILL.md` |
 | ЛЮБОЙ элемент интерфейса игры (текст, счётчик, шкала, кнопка, панель, меню): `js/UI.js`, `js/UILayout.js`, вкладка UI редактора (`ui-panel.js`), новый вид элемента | `claude/skills/ui/SKILL.md` |
-| ЛЮБОЙ звук: эффект, музыка, звук объекта локации, `js/Sound3D.js`, поле `sound` в `Objects.js`, константы `AUDIO_*`, файлы в `assets/sounds` | `claude/skills/sound/SKILL.md` |
+| ЛЮБОЙ звук: эффект, музыка, звук объекта локации, `js/engine/Sound3D.js`, поле `sound` в `Objects.js`, константы `AUDIO_*`, файлы в `assets/sounds` | `claude/skills/sound/SKILL.md` |
 | `_utils/`, редактор, инспектор, вкладка Objects, новая константа в редакторе, текст интерфейса | `claude/skills/editor/SKILL.md` |
 | `tools/`, `tests/`, ассеты, новый скрипт, архив, проверка типов и ошибки tsc | `claude/skills/build/SKILL.md` |
 | своя геометрия (сетка из вершин, порт генератора, импорт glTF), материал с картой нормалей, новый источник света, свой шейдер, thin instances и процедурная расстановка; «сетка вывернута», «свет не с той стороны», пропал свет или меш | `claude/skills/render-conventions/SKILL.md` |
 | проверка правки глазами и числами: панель браузера, `Debug3D` (удержание вида, кадры без rAF, замер, линтер сцены, отладочные режимы), замер цены кадра, воспроизведение состояния пользователя | `claude/skills/verify/SKILL.md` |
+| визуальный пайплайн целиком: профили (2d…full3d) и варианты, что решает каждый, как читать и переключать, какие проверки гонять | `claude/skills/render-profile/SKILL.md` |
+| конверсия между профилями как НЕдеструктивная миграция представления: план, транзакция из 16 шагов, rollback, журнал | `claude/skills/visual-migration/SKILL.md` |
+| Master Project и варианты: создать/клонировать/конвертировать/сравнить/запустить/валидировать несколько визуальных версий ОДНОЙ игры | `claude/skills/visual-variants/SKILL.md` |
+| профиль 2D: орто-камера, спрайты и тайлмап, плоский свет, декларативная глубина | `claude/skills/2d/SKILL.md` |
+| профиль 2.5D: биллборды в 3D-мире, гибридная глубина и анимация | `claude/skills/2.5d/SKILL.md` |
+| профиль Isometric 3D: параметризованная орто-камера над настоящим 3D | `claude/skills/isometric3d/SKILL.md` |
+| профиль Low-poly 3D: перспектива, лоу-поли меши, простые материалы, мобильный бюджет | `claude/skills/lowpoly3d/SKILL.md` |
+| профиль Full 3D: перспектива, PBR, GLB со скелетной анимацией, полный стек света | `claude/skills/full3d/SKILL.md` |
+| семантический реестр ассетов: роли вместо файлов, варианты на профиль, фолбэки и заглушки | `claude/skills/asset-representation/SKILL.md` |
+| семантическая камера: режимы, follow/zoom/lookAt, орто против перспективы | `claude/skills/camera/SKILL.md` |
+| семантический свет: пресеты flat/stylized/isometric/lowpoly/realistic и их композиция с константами | `claude/skills/lighting/SKILL.md` |
+| материалы по профилям: unlit-спрайты, toon, stylized, PBR; материалы спрайтов | `claude/skills/materials/SKILL.md` |
+| семантическая анимация: общие состояния, спрайт-фреймы против скелетных клипов | `claude/skills/animation/SKILL.md` |
 
 ## Запуск и сборка
 
@@ -38,6 +51,13 @@ node tools/arc.mjs editor    # редактор: http://localhost:8090/_utils/ed
 node tools/arc.mjs build     # dist/arcengine-<GAME_VERSION>.zip
 node tools/arc.mjs check     # быстрый профиль; агенту — то же с [--types|--tests|--skills]
 node tools/arc.mjs check --all   # релизный gate: + headless render/visual (puppeteer dev-only)
+node tools/arc.mjs run --variant <id>   # этот экземпляр игры показывает один визуальный вариант
+node tools/arc.mjs run --all     # пять рантайм-инстансов одного проекта (по вкладке на вариант)
+node tools/arc.mjs variant list | inspect | validate --all | runtime --variant <id>
+node tools/arc.mjs variant plan --from 2d --to full3d       # сухой прогон миграции
+node tools/arc.mjs variant convert --source <вариант> --profile full3d [--write-placeholders]
+node tools/arc.mjs check --profiles   # матрица профилей и конверсий без браузера
+node tools/arc.mjs check --variants   # те же пять вариантов в настоящем браузере (puppeteer)
 ```
 
 Обёртки над тем же CLI: Windows — `run.bat`/`editor.bat`/`check.bat`/`build.bat`,
@@ -54,6 +74,34 @@ Git: что не едет в репозиторий — `.gitignore` (`.claude/`
 `python -m http.server` не использовать: браузер закэширует старый скрипт.
 Панель браузера Claude Desktop читает `.claude/launch.json` (`game` — 9378, `editor` — 9377);
 если его нет — скопировать `claude/launch.json`.
+
+## Единый визуальный пайплайн (профиль != вариант)
+
+Одна игра = одна модель (`js/GameSpec.js`: правила, системы, мир, сущности, сцены, реестр
+ассетов, UI, звук, прогрессия, схема сохранений). Поверх неё — два независимых понятия:
+
+* **Profile** — ТИП представления: камера/проекция, репрезентации, свет, система анимации,
+  модель глубины, capabilities и машинный бюджет. Канон — `manifest/render-profiles.json`
+  (генерируется в `js/presentation/RenderProfiles.js`), поведение — `js/profiles/<id>/profile.js`.
+* **Variant** — конкретное представление ЭТОГО проекта: профиль + оверрайды
+  (`presentation/variants/<id>.json`). Пять вариантов одного проекта делят одну модель игры,
+  один реестр ассетов и одну схему сохранений; конверсия создаёт/обновляет вариант и никогда
+  не копирует проект и не трогает gameplay (источник остаётся жив).
+
+Слои физически разделены: `js/core/` (семантика, без `pc.*`), `js/presentation/` (профили,
+варианты, миграции, рантайм), `js/profiles/` (адаптеры профилей), `js/engine/` (единственное
+место с PlayCanvas: Sprite2D, Camera3D, Lighting3D, Visual3D + прежние World3D/Terrain3D/
+Model3D/Gltf3D/Location3D). Координаты канонические везде: `x` — горизонталь, `y` — высота,
+`z` — глубина; 2D — это случай `y = 0` того же пространства.
+
+Запуск одного проекта в пяти инстансах: `node tools/arc.mjs run --all` или
+`/?project=<id>&variant=<id>` по вкладке. Доказательство общности модели —
+`PlayArcRuntime.context().contractHash` и `saveSchemaHash`, одинаковые во всех вариантах и во
+всех вкладках. `gameplayHash` — про ДРУГОЕ: он покрывает живое состояние модели (позиции,
+логика, прогрессия) и потому является доказательством сохранности при миграции ВНУТРИ сессии;
+у двух играющих вкладок он расходится, и это нормально.
+В редакторе — вкладка **Profile**: проект/профиль/вариант раздельно, живой предпросмотр
+варианта во view, Preview/Apply миграции и «Create all variants».
 
 ## Инварианты
 
@@ -97,12 +145,42 @@ Git: что не едет в репозиторий — `.gitignore` (`.claude/`
    живёт в отдельном engine-файле `js/…3D.js` по образцу `Procedural3D.js`: он создаёт меши и
    регистрирует их через `World3D.addObject`, а игре отдаёт методы с обычными числами.
    Клавиши движения игра забирает через `camera.flightKeys = false`, а не правкой `FLY_KEYS`.
+13. **Gameplay не знает рендерер.** `js/Game.js` и агентский код — только семантический слой
+    (`GameModel`, `Entity`, `World`, `Input`, `GameAnimation`, `GameAudio`, `Save`, `Scene`,
+    `Edit`, `Kit`, `UI`, `Asset`, `RenderProfile`, `Variant`, `Camera`, `Lighting`); тест
+    `tests/pipeline-layers.test.mjs` падает на любом `pc.` вне `js/engine/` и на любой ветке
+    по профилю в gameplay.
+14. **Profile != Variant; конверсия не деструктивна.** Источник-вариант переживает конверсию;
+    «деструктивная замена» — отдельная явная команда, не рабочий процесс агента.
+15. **Миграция сохраняется доказуемо.** `entity ids`, логические координаты, правила, мир и
+    схема сохранений идентичны до и после (`Migration.verify`), журнал — в
+    `presentation/migration-journal.json`; план (dry run) показывается человеку до применения.
+16. **Генерируемое не правят руками.** `js/presentation/RenderProfiles.js`,
+    `js/presentation/Variants.js`, `project.json`, `presentation/profiles/*.json`,
+    `js/core/SceneSchema.js`, `.claude/skills/`, `.agents/skills/`, `AGENTS.md`,
+    `agent-manifest.json` — только через свои генераторы (`tools/render-profiles.mjs`,
+    `tools/variants.mjs`, `tools/manifest.mjs`, `tools/sync-skills.mjs`); `check.mjs` сверяет.
 
 ## Карта файлов
 
 ```
+manifest/         machine-readable контракты: render-profiles.json (канон профилей),
+                  game-schema.json, asset-schema.json, migration-schema.json, variant-schema.json
+presentation/     variants/*.json (варианты), presets/*.json, mappings/*.json, profiles/*.json (GEN),
+                  migration-journal.json
+project.json      GEN-дескриптор Master Project (id, defaultVariant, variants, runtime)
 index.html        холст #world3d, экран загрузки, порядок скриптов (js/…)
 js/               код игры — классические скрипты:
+  GameSpec.js     GAME_SPEC — модель игры (правила, системы, мир, сущности, сцены, ассеты-роли,
+                  UI, звук, прогрессия, схема сохранений, журнал миграций); пишет редактор
+  core/           семантика без движка: Coords (x/y/z), Entity, World (WorldMap), GameModel,
+                  Input, GameAudio, Save, SceneAPI (Scene/Edit/Kit/Asset), SceneSchema (GEN)
+  presentation/   RenderProfile, Variant, Migration, Runtime (PlayArcRuntime), AssetRegistry,
+                  Camera, Lighting, Animation, VisualEntity; RenderProfiles/Variants (GEN)
+  profiles/       2d|2.5d|isometric3d|lowpoly3d|full3d/profile.js — поведение профиля
+  engine/         PlayCanvas-адаптеры: World3D, Terrain3D, CameraControl, Model3D, Gltf3D,
+                  Location3D, Procedural3D, Debug3D, Sound3D, Sprite2D, Camera3D, Lighting3D,
+                  Visual3D
   Constants.js    Store, IS_MOBILE, LOCATION_*, TERRAIN_*, CAMERA_*, WORLD3D_* (грузится первым)
   Objects.js      LOCATION_OBJECTS — объекты локации (модель .fbx/.glb, вид, x/y/h, rot [x,y,z], scale [x,y,z],
                   anim — вращение части, clip — клип GLB, tag — группа для кода, hidden — скрыт до
@@ -164,7 +242,7 @@ NOTICE            атрибуция MIT-компонентов (PlayCanvas, @pl
 README.md         публичное описание набора (EN): быстрый старт, AI-native раздел, лицензии
 ROADMAP.md        стратегия публичного AI-native набора: фазы A/B/C, лицензии, риски
 tools/            … sync-skills.mjs — генерация копий скиллов для агентов (--check для check.mjs);
-                  manifest.mjs — генерация js/SceneSchema.js; create-arcengine.mjs — скаффолд
+                  manifest.mjs — генерация js/core/SceneSchema.js; create-arcengine.mjs — скаффолд
                   новой игры на наборе (стартеры kit/empty/survival, --no-skills)
 scaffold/         исходники стартеров для create-arcengine (оверлеи js/); в архив игры не едет
 ```
@@ -175,8 +253,8 @@ scaffold/         исходники стартеров для create-arcengine 
 совместимые — `.agents/skills/` + `AGENTS.md`, Cursor — ещё `.cursor/rules/arcengine.mdc`.
 Канон один (`claude/skills/`, `claude/vendor/`); копии и точки входа перегенерируются
 `node tools/sync-skills.mjs` после любой правки канона (иначе `check.mjs` упадёт).
-Семантический слой фазы B: `Scene.*` (js/SceneAPI.js) над каноном записей; манифест
-`js/SceneSchema.js` перегенерируется `node tools/manifest.mjs` после правок Constants.js или
+Семантический слой фазы B: `Scene.*` (js/core/SceneAPI.js) над каноном записей; манифест
+`js/core/SceneSchema.js` перегенерируется `node tools/manifest.mjs` после правок Constants.js или
 схемы редактора (check.mjs сверяет). Составные правки агента — транзакции
 `Edit.begin(label).add/update/remove…commit()`: валидация всех операций до применения,
 при ошибке — откат к снимку и запись в `Scene.journal()` (committed/rolledback/rejected/

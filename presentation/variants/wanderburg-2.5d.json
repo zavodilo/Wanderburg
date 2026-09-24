@@ -1,0 +1,55 @@
+{
+    "id": "wanderburg-2.5d",
+    "name": "Wanderburg — Hybrid 2.5D",
+    "profile": "2.5d",
+    "enabled": true,
+    "description": "CONVERSION TARGET. An orthographic top-down lens with the shading model switched off (the flat preset: no toon bands, no ink; sun and sky still come from the biome). The world stays the 3D height field — see environment — so what this shows today is the valley from directly above, not sprite art: a real 2.5D presentation needs billboard sprites for the roles in GAME_SPEC.assets (skill asset-representation, tools/placeholder.mjs). Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
+    "createdBy": "author",
+    "createdFrom": "wanderburg-lowpoly3d",
+    "camera": {
+        "mode": "topdown",
+        "follow": null,
+        "azimuthDeg": -90,
+        "elevationDeg": 88,
+        "orthoHeightPx": 540,
+        "zoomMin": 0.4,
+        "zoomMax": 1.7,
+        "orbit": false
+    },
+    "lighting": {
+        "preset": "flat",
+        "shadows": 0,
+        "toon": 0,
+        "ink": 0,
+        "outline": 0
+    },
+    "materials": {
+        "shading": "unlit",
+        "ink": 0,
+        "outline": 0
+    },
+    "environment": {
+        "ground": "terrain",
+        "flatten": 0,
+        "tilePx": 64
+    },
+    "animation": {
+        "style": "sprite-frames"
+    },
+    "ui": {
+        "space": "screen",
+        "scale": 1
+    },
+    "audio": {
+        "spatial": false
+    },
+    "effects": {
+        "particles": 160,
+        "postprocessing": "none"
+    },
+    "performance": {
+        "maxDrawCalls": 300,
+        "maxParticles": 160,
+        "maxShadowLights": 0
+    }
+}

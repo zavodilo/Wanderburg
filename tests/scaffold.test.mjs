@@ -22,7 +22,7 @@ test('скаффолд: survival-стартер копирует набор, о�
     const dir = tmp();
     const r = cli([dir, '--starter', 'survival']);
     assert.equal(r.status, 0, r.stderr);
-    for (const f of ['index.html', 'js/World3D.js', 'js/SceneAPI.js', 'js/SceneSchema.js',
+    for (const f of ['index.html', 'js/engine/World3D.js', 'js/core/SceneAPI.js', 'js/core/SceneSchema.js',
         'libs/playcanvas.min.js', 'assets/models/character.glb', '_utils/editor/server.mjs',
         'tools/check.mjs', 'claude/skills/world3d/SKILL.md', 'claude/vendor/playcanvas/LICENSE',
         'AGENTS.md', '.agents/skills/world3d/SKILL.md', '.claude/skills/world3d/SKILL.md',
@@ -37,6 +37,34 @@ test('скаффолд: survival-стартер копирует набор, о�
     // the target is self-sufficient: its own sync-skills runs from its own tools/
     const check = spawnSync(process.execPath, ['tools/sync-skills.mjs', '--check'], { cwd: dir, encoding: 'utf8' });
     assert.equal(check.status, 0, check.stderr);
+    fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// The scaffolded game is a DIFFERENT project than the kit sample: its own id, its own variants,
+// and its own test run. Regression: the sample's project.json/variants used to travel with the
+// scaffold, so a new game presented itself as "ArcEngine Sample" and the kit's pipeline tests
+// (which are copied into it) failed out of the box.
+test('скаффолд: проект получает СВОЮ презентацию и проходит собственные тесты пайплайна', { skip: NO_SCAFFOLD }, () => {
+    const dir = tmp();
+    const r = cli([dir, '--starter', 'survival']);
+    assert.equal(r.status, 0, r.stderr);
+    const spec = fs.readFileSync(path.join(dir, 'js', 'GameSpec.js'), 'utf8');
+    const id = /id:\s*'([a-z0-9-]+)'/.exec(spec)[1];
+    const project = JSON.parse(fs.readFileSync(path.join(dir, 'project.json'), 'utf8'));
+    assert.equal(project.id, id, 'project.json is the starter project, not the kit sample');
+    assert.notEqual(project.id, 'arcengine-sample');
+    const variants = fs.readdirSync(path.join(dir, 'presentation', 'variants')).filter(f => f.endsWith('.json')).map(f => f.replace(/\.json$/, '')).sort();
+    assert.equal(variants.length, 5, 'one variant per render profile');
+    assert.deepEqual(variants, project.variants.slice().sort());
+    for (const v of variants) assert.ok(v.startsWith(id + '-'), v + ' belongs to the project ' + id);
+    assert.ok(project.defaultVariant && project.defaultVariant.startsWith(id + '-'), 'the default variant is the project\'s own');
+    // no drift: the generated runtime file matches the disk canon
+    const check = spawnSync(process.execPath, ['tools/variants.mjs', '--check'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(check.status, 0, check.stdout + check.stderr);
+    // and the copied pipeline tests pass in the new project as they are
+    const tests = spawnSync(process.execPath, ['--test', 'tests/variants.test.mjs', 'tests/core-model.test.mjs', 'tests/pipeline-layers.test.mjs'],
+        { cwd: dir, encoding: 'utf8' });
+    assert.equal(tests.status, 0, (tests.stdout || '').split('\n').filter(l => /^not ok/.test(l)).join('\n') + tests.stderr);
     fs.rmSync(dir, { recursive: true, force: true });
 });
 

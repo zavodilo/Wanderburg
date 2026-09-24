@@ -5,6 +5,21 @@ ArcEngine is a zero-dependency kit for 3D browser games on PlayCanvas 2 (vanilla
 classic `<script>` tags, no npm, no build step). Humans: `CLAUDE.md` and `README.md`.
 Strategy: `ROADMAP.md`.
 
+## The fundamental principle (unified visual pipeline)
+
+Gameplay is renderer-independent. A Render Profile controls presentation, not game rules.
+Never rewrite gameplay merely because the visual profile changes. Never access PlayCanvas
+directly from gameplay code — use the semantic APIs (GameModel, Entity, World, Input,
+GameAnimation, GameAudio, Save, Scene, Edit, Kit, UI, Asset, RenderProfile, Variant, Camera,
+Lighting). Every entity has a stable logical identity; every visual representation is
+replaceable. Profile != Variant: a variant is one concrete presentation of ONE game model, so
+every profile migration preserves logical state unless the user explicitly asks for gameplay
+changes, and conversions are non-destructive (the source variant survives).
+Before a large migration: 1. inspect the project, 2. determine the current profile,
+3. determine the target profile, 4. generate the migration plan (dry run), 5. validate
+capabilities and asset requirements, 6. apply the migration transactionally, 7. run gameplay
+tests, 8. run render tests, 9. report missing assets and fallbacks.
+
 ## Work protocol
 
 1. Before editing an area, read the matching skill: `<name>` lives in
@@ -23,12 +38,25 @@ Strategy: `ROADMAP.md`.
 
 | Skill | Use before |
 |---|---|
+| `2.5d` | The 2.5D render profile — hybrid presentation: billboard sprites for characters in a real 3D environment, orthographic tilted camera, stylized lighting, z-buffe |
+| `2d` | The 2D render profile — orthographic top-down/side camera, sprites and tilemaps on the x/z plane (y presented as 0), flat lighting, declarative depth (renderLay |
+| `animation` | The semantic animation API — shared states (idle/walk/run/attack/hurt/death/jump…), GameAnimation.play/stop/state/subject, and how a state becomes sprite frames |
+| `asset-representation` | The semantic asset registry — roles (player.visual) instead of files, one variant per render profile, fallback chains, generated placeholders, variant visualMap |
 | `build` | Dev server, build and code checks — dev server (tools/dev-server.mjs), archive builder (tools/build.mjs, asset-scan.mjs, zip.mjs), tsc type check and node --tes |
+| `camera` | The semantic camera — modes (topdown, side, platformer, isometric, thirdPerson, firstPerson, free, orbit), Camera.follow/mode/zoom/lookAt/orbit, projection swit |
 | `editor` | The kit's web editor (_utils/editor) — location view with free/game cameras, toon toggle, Global Settings tab (constants inspector from schema.js, saves to Cons |
+| `full3d` | The Full 3D render profile — perspective camera, PBR, GLB models with skeletal animation, dynamic lighting and shadows, particles, post effects, terrain with he |
+| `isometric3d` | The Isometric 3D render profile — real 3D geometry through a fixed PARAMETERIZED orthographic camera (azimuth/elevation/orthoHeight/target), stylized 3D lightin |
+| `lighting` | The semantic lighting API — presets flat/stylized/isometric/lowpoly/realistic, Lighting.setProfile/setSun/setAmbient/setShadows/setFog, and how a preset becomes |
+| `lowpoly3d` | The Low-poly 3D render profile — PERSPECTIVE camera, low-poly meshes, flat stylized materials, one directional light, mobile-friendly budgets; the lens differen |
+| `materials` | How each render profile shades surfaces — unlit sprites, toon bands, stylized low-poly, PBR — plus the kit's toon/ink/outline switches and the sprite material c |
 | `render-conventions` | Conventions and hard limits for anything you add to the scene yourself — custom geometry (winding in the mirrored world, culling), normal maps (OpenGL vs Direct |
-| `sound` | The game's sound — js/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js, the A |
+| `render-profile` | The orchestration skill of the unified visual pipeline — profiles (2d, 2.5d, isometric3d, lowpoly3d, full3d) vs variants, what each decides, how to read and swi |
+| `sound` | The game's sound — js/engine/Sound3D.js (effects, music, sounds that stand on the map, channels and volumes), the sound field of a location object in Objects.js |
 | `ui` | The game's UI (HUD) — js/UI.js runtime, js/UILayout.js layout records, the editor's UI tab (_utils/editor/ui-panel.js) with drag and resize over the view, UI_RE |
 | `verify` | How to check a change with your own eyes and numbers — the Browser pane, Debug3D (held view, synchronous frames, benchmark, scene lint, debug render modes), mea |
+| `visual-migration` | Converting a game between render profiles (2d <-> 3d) as a NON-DESTRUCTIVE presentation migration — the 16-step transaction, the dry-run plan, rollback, the pre |
+| `visual-variants` | The Master Project workflow — inspect/create/clone/convert/compare/run/validate visual variants of ONE game (2D, 2.5D, isometric, low-poly, full 3D) without cop |
 | `world3d` | The kit's 3D engine — World3D (engine, View3D, light, shadows, toon shader chunks, ink edges and silhouette outline, addObject), Terrain3D (ground), Location3D  |
 
 Vendored PlayCanvas engine skills (MIT, v0.3.0): `add-effects`, `apply-conventions`, `assemble-scene`, `bake-lighting`, `build-app`, `build-hud`, `calibrate-model`, `configure-animation`, `find-examples`, `inspect-glb`, `light-scene`, `manage-game-state`, `override-shader-chunks`, `reduce-draw-calls`, `reuse-scripts`, `verify-pixels` —

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadScripts, stub } from './browser-scripts.mjs';
 
-const page = loadScripts(['js/Debug3D.js'], { pc: stub(), World3D: stub() });
+const page = loadScripts(['js/engine/Debug3D.js'], { pc: stub(), World3D: stub() });
 const Debug3D = page.get('Debug3D');
 
 // A unit quad in the XZ plane with normals up. Indices (0, 1, 2): cross(b - a, c - a) — down,
@@ -67,7 +67,7 @@ test('поза удержанного вида: глаз не ниже рель�
 });
 
 test('assert*: машиночитаемые исходы вместо исключений', () => {
-    const page = loadScripts(['js/Debug3D.js'], { pc: stub(), World3D: stub() });
+    const page = loadScripts(['js/engine/Debug3D.js'], { pc: stub(), World3D: stub() });
     const Debug3D = page.get('Debug3D');
     const objects = [
         { def: { name: 'ok', x: 100, y: 100, h: 0 }, mesh: {}, error: null },

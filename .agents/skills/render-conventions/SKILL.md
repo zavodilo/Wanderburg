@@ -6,7 +6,7 @@ description: Conventions and hard limits for anything you add to the scene yours
 # Render conventions: what the engine assumes about your meshes, materials and lights
 
 Every rule here is a defect that once reached the screen and was found by eye, not by test.
-`Debug3D.lint()` (`js/Debug3D.js`, editor button "Lint scene") checks most of them — run it
+`Debug3D.lint()` (`js/engine/Debug3D.js`, editor button "Lint scene") checks most of them — run it
 after adding geometry, materials or lights. Skill `verify` tells how to look at the result.
 
 The engine is PlayCanvas 2 (WebGL2 only), and the kit's world is the map space MIRRORED on X

@@ -6,7 +6,7 @@
 //      Constants.js (otherwise "Save" has nowhere to go);
 //   2. its own port (8090+), to live next to the game on 8080.
 //  Static files are served from the PROJECT ROOT (the editor loads the game's
-//  /js/Constants.js, /js/World3D.js, /assets/* directly), with no-store — as in dev-server.
+//  /js/Constants.js, /js/engine/World3D.js, /assets/* directly), with no-store — as in dev-server.
 //
 //  Writing game files — save.mjs (Constants.js patch, the whole Objects.js and UILayout.js,
 //  backups). POST /api/save-ui — UILayout.js from a validated element list (UI tab).
@@ -24,11 +24,19 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import url from 'node:url';
 import { execFile } from 'node:child_process';
-import { failure, isModelPath, saveConstants, saveObjects, saveUI } from './save.mjs';
+import { failure, isModelPath, saveConstants, saveObjects, saveUI, saveVariant, saveVariants, saveJournal } from './save.mjs';
 
 // Server contract version. Bump on EVERY change of the endpoints or the
 // response format — the client checks it against EDITOR_API_VERSION in schema.js.
-const EDITOR_API_VERSION = 19;
+const EDITOR_API_VERSION = 20;
+
+// The profile canon for variant validation (manifest/render-profiles.json).
+function profileIds() {
+  try {
+    const m = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest', 'render-profiles.json'), 'utf8'));
+    return Array.isArray(m.order) ? m.order : [];
+  } catch (e) { return []; }
+}
 
 const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', '..');
 const MODELS_DIR = path.join(ROOT, 'assets', 'models');
@@ -236,6 +244,37 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       if (e.code === 'bad_json' || e.code === 'too_large') return;   // 400/413 already sent
       console.log(`  ${C.red}save FAILED${C.r} ${e.message}`);
+      return sendJson(res, 500, { ok: false, error: e.message });
+    }
+  }
+  // --- visual variants: the presentation layer of the shared game model ---
+  if (pathname === '/api/save-variant' || pathname === '/api/save-variants' || pathname === '/api/save-journal') {
+    if (req.method !== 'POST') return send(res, 405, { 'Content-Type': 'text/plain' }, 'Method Not Allowed');
+    try {
+      const body = await readJson(req, res);
+      let result;
+      if (pathname === '/api/save-variant') result = await saveVariant(ROOT, body.variant, profileIds());
+      else if (pathname === '/api/save-variants') result = await saveVariants(ROOT, body.variants, profileIds());
+      else result = await saveJournal(ROOT, body.journal);
+      if (result.ok) console.log(`  ${C.grn}variant${C.r} ${pathname.replace('/api/', '')} -> presentation/ ${C.dim}(${result.count != null ? result.count + ' record(s)' : result.path})${C.r}`);
+      else console.log(`  ${C.ylw}variant${C.r} ${pathname}: ${result.error}`);
+      return sendJson(res, 200, result);
+    } catch (e) {
+      if (e.code === 'bad_json' || e.code === 'too_large') return;   // 400/413 already sent
+      console.log(`  ${C.red}variant FAILED${C.r} ${e.message}`);
+      return sendJson(res, 500, { ok: false, error: e.message });
+    }
+  }
+  if (pathname === '/api/regenerate-variants') {
+    if (req.method !== 'POST') return send(res, 405, { 'Content-Type': 'text/plain' }, 'Method Not Allowed');
+    try {
+      await readJson(req, res).catch(() => ({}));
+      // project.json + js/presentation/Variants.js + presentation/profiles/*.json from the canon
+      const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'variants.mjs')], { cwd: ROOT, encoding: 'utf8' });
+      if (r.status === 0) console.log(`  ${C.grn}variants${C.r} regenerated (project.json, Variants.js, profiles/)`);
+      else console.log(`  ${C.red}variants regen FAILED${C.r} ${(r.stderr || '').slice(0, 200)}`);
+      return sendJson(res, 200, { ok: r.status === 0, status: r.status, out: (r.stdout || '').slice(-400) });
+    } catch (e) {
       return sendJson(res, 500, { ok: false, error: e.message });
     }
   }

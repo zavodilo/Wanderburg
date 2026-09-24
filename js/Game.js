@@ -11,7 +11,7 @@
 // view, feed the HUD".
 
 class Game {
-    /** @param {{ location: Location3D, camera: CameraController }} app */
+    /** @param {{ location: Location3D, camera: CameraController, runtime: any }} app */
     constructor(app) {
         this.app = app;
         this.location = app.location;
@@ -391,6 +391,9 @@ class Game {
         const run = this.run;
         if (!run) return;
 
+        // The semantic model (js/GameSpec.js -> js/core/GameModel.js) follows the simulation.
+        this.mirrorModel();
+
         if (this.state === 'menu') {
             // The attract run: roll the valley slowly behind the title so the menu is alive.
             this.stepAttract(dt);
@@ -412,6 +415,96 @@ class Game {
         }
 
         if (run.over && this.state !== 'end') this.endRun();
+    }
+
+    // --- the semantic model ---------------------------------------------------------------------
+    // js/GameSpec.js declares this project's renderer-independent contract and js/core/GameModel.js
+    // boots it: stable entity ids, one save schema, one gameplay hash in every visual variant.
+    // js/Logic.js stays the OWNER of the simulation truth — the mirror below only copies the two
+    // actors that outlive a frame (the player's castle and the region's warden gate), the run's
+    // progression and the active scene into the model, so Save.*, Scene.inspect(), the editor's
+    // Profile tab and a profile migration all speak about real state instead of an empty shell.
+    //
+    // Coordinates go through Coords: the simulation's map space (x, y — depth, height separate) is
+    // the kit's mirror of the canonical (x — horizontal, y — height, z — depth). Both entities are
+    // SELF-PRESENTED (visual.representation 'none'): js/WanderView.js draws them, the pipeline
+    // binds no second copy.
+
+    /** The logical scene the screen shows right now (GAME_SPEC.scenes). */
+    syncScene() {
+        if (typeof GameModel === 'undefined' || !GameModel.booted()) return null;
+        let id = 'gameplay';
+        if (this.state === 'menu') {
+            const s = (typeof Hud !== 'undefined' && Hud.screen) || 'title';
+            id = (s === 'loadout' || s === 'legacy') ? s : 'main-menu';
+        } else if (this.state === 'draft') id = 'draft';
+        else if (this.state === 'pause') id = 'pause';
+        else if (this.state === 'help') id = 'help';
+        else if (this.state === 'settings') id = 'settings';
+        else if (this.state === 'end') id = 'run-over';
+        else if (this.run && this.run.bossActive) id = 'boss';
+        if (GameModel.activeScene !== id) GameModel.activeScene = id;
+        return id;
+    }
+
+    /** Simulation truth -> the semantic model. One call per frame; no per-frame allocation. */
+    mirrorModel() {
+        if (typeof GameModel === 'undefined' || !GameModel.booted()) return false;
+        this.syncScene();
+        const run = this.run;
+        if (!run || !run.player || !run.region) return false;
+        const p = run.player, region = run.region;
+
+        const castle = GameModel.entity(Game.CASTLE_ID);
+        if (castle) {
+            castle.setPosition(Coords.fromMap({ x: p.x, y: p.y, h: region.heightAt(p.x, p.y) }));
+            castle.setHeading(p.heading * 180 / Math.PI);
+            castle.set('hull', Math.round(p.hp));
+            castle.set('maxHull', Math.round(p.maxHp));
+            castle.set('mass', Math.round(p.mass));
+            castle.set('tier', p.tier);
+            castle.set('steam', Math.round(p.steam));
+            castle.set('speed', Math.round(p.speed || 0));
+            castle.set('slots', p.slots);
+            castle.set('modules', p.modules.length);
+            castle.set('region', run.regionIndex);
+            const hull = castle.component('Hull');
+            if (hull) { hull.current = Math.round(p.hp); hull.max = Math.round(p.maxHp); hull.tier = p.tier; }
+            const steam = castle.component('Steam');
+            if (steam) steam.current = Math.round(p.steam);
+            const mass = castle.component('Mass');
+            if (mass) mass.current = Math.round(p.mass);
+        }
+
+        const g = region.gate;
+        const gate = GameModel.entity(Game.GATE_ID);
+        if (gate && g) {
+            gate.setPosition(Coords.fromMap({ x: g.x, y: g.y, h: region.heightAt(g.x, g.y) }));
+            gate.setHeading((g.heading || 0) * 180 / Math.PI);
+            gate.set('open', !!g.open);
+            gate.set('region', run.regionIndex);
+        }
+
+        // Progression: the hull tier is the in-run level, the devoured mass is its experience,
+        // scrap is the meta-currency the legacy shop spends between runs.
+        const pr = GameModel.progression;
+        if (pr) {
+            pr.level = p.tier;
+            pr.xp = Math.round(p.mass);
+            pr.currencies = pr.currencies || {};
+            pr.currencies.scrap = Math.round((run.totals && run.totals.scrap) || 0);
+            pr.currencies.mass = Math.round((run.totals && run.totals.mass) || 0);
+        }
+        // Run context an agent or a save reads without touching the simulation.
+        if (typeof Kit !== 'undefined') {
+            Kit.state('region', run.regionIndex);
+            Kit.state('biome', region.biome.id);
+            Kit.state('seed', run.seed);
+            Kit.state('runTime', Math.round(run.time));
+            Kit.state('screenState', this.state);
+            Kit.state('fortressesLeft', run.fortressesLeft);
+        }
+        return true;
     }
 
     /** The attract autopilot: seek the nearest village, avoid the rim, no fighting. */
@@ -501,3 +594,8 @@ class Game {
 // The tag of the location object the kit's sample game used to drive; Wanderburg builds its own
 // world in code, so Objects.js stays empty and this is kept for the kit's contract only.
 Game.HERO_TAG = 'player';
+
+// The stable logical identities of GAME_SPEC.entities (js/GameSpec.js). A visual migration,
+// a save and the editor all address the actors by these ids — never by a mesh or a scene node.
+Game.CASTLE_ID = 'castle';
+Game.GATE_ID = 'warden-gate';

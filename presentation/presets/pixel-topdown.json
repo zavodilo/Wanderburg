@@ -1,0 +1,7 @@
+{
+    "id": "pixel-topdown",
+    "description": "A reusable pixel-art top-down look: straight-down orthographic camera, flat light, crisp sprites.",
+    "camera": { "mode": "topdown", "elevationDeg": 88, "orthoHeightPx": 360, "orbit": false },
+    "lighting": { "preset": "flat", "shadows": 0, "toon": 0, "ink": 0, "outline": 0, "fog": 0 },
+    "environment": { "ground": "tilemap", "flatten": 1 }
+}

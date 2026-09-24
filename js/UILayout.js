@@ -9,7 +9,7 @@
 const UI_LAYOUT = [
     { id: 'titleBig', kind: 'text', anchor: 'middle-center', x: 0, y: -186, text: "WANDERBURG", fontSize: 66, color: '#d8ab52', shadow: '#1a1208', alpha: 1, visible: 1 },
     { id: 'titleSub', kind: 'text', anchor: 'middle-center', x: 0, y: -122, text: "Замок на колёсах пожирает долину", fontSize: 17, color: '#f0e6d2', shadow: '#120e0a', alpha: 0.85, visible: 1 },
-    { id: 'titleVer', kind: 'text', anchor: 'middle-center', x: 0, y: -98, text: "v1.0.0 · ArcEngine · PlayCanvas 2", fontSize: 11, color: '#f0e6d2', shadow: '#120e0a', alpha: 0.45, visible: 1 },
+    { id: 'titleVer', kind: 'text', anchor: 'middle-center', x: 0, y: -98, text: "v1.1.0 · ArcEngine · пайплайн", fontSize: 11, color: '#f0e6d2', shadow: '#120e0a', alpha: 0.45, visible: 1 },
     { id: 'btnStart', kind: 'button', anchor: 'middle-center', x: -210, y: -46, w: 200, h: 50, text: "В ПОХОД", fontSize: 15, color: '#f6efe0', fill: '#5f9e4a', border: '', radius: 8, alpha: 1, visible: 1 },
     { id: 'btnLoadout', kind: 'button', anchor: 'middle-center', x: 10, y: -46, w: 200, h: 50, text: "СНАРЯЖЕНИЕ", fontSize: 15, color: '#f6efe0', fill: '#6f767e', border: '', radius: 8, alpha: 1, visible: 1 },
     { id: 'btnLegacy', kind: 'button', anchor: 'middle-center', x: -210, y: 16, w: 200, h: 46, text: "НАСЛЕДИЕ", fontSize: 15, color: '#f6efe0', fill: '#241d17', border: '', radius: 8, alpha: 1, visible: 1 },

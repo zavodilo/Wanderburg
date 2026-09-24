@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { loadScripts, stub } from './browser-scripts.mjs';
 
 function makeScene() {
-    const page = loadScripts(['js/Constants.js', 'js/UILayout.js', 'js/UI.js', 'js/SceneSchema.js', 'js/SceneAPI.js'],
+    const page = loadScripts(['js/Constants.js', 'js/UILayout.js', 'js/UI.js', 'js/core/SceneSchema.js', 'js/core/SceneAPI.js'],
         { pc: stub(), World3D: stub(), Debug3D: { lint: async () => ({ findings: [], stats: { triangles: 0 } }) } });
     const loc = {
         objects: [],

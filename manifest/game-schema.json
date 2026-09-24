@@ -1,0 +1,205 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "arcengine/manifest/game-schema.json",
+    "title": "ArcEngine GameModel spec (GAME_SPEC)",
+    "description": "The canonical description of a game: renderer-independent. js/GameSpec.js declares GAME_SPEC in exactly this shape; js/core/GameModel.js boots from it and validates it (GameModel.validate); `node tools/variants.mjs validate --all` boots every variant against the model. Nothing here mentions PlayCanvas, a renderer or a visual file format: visuals live in the asset registry keyed by render profile.",
+    "type": "object",
+    "required": ["id", "title", "renderProfile", "world", "entities"],
+    "additionalProperties": false,
+    "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$", "description": "stable project id" },
+        "title": { "type": "string", "description": "human title" },
+        "specVersion": { "type": "integer", "minimum": 1, "default": 1 },
+        "renderProfile": { "type": "string", "enum": ["2d", "2.5d", "isometric3d", "lowpoly3d", "full3d"], "description": "the project's current visual profile (presentation only)" },
+        "renderProfileReason": { "type": "string", "description": "why this profile was chosen (AI decision record, manifest aiDecisionRules)" },
+        "genre": { "type": "string" },
+        "rules": {
+            "type": "object",
+            "description": "named game rules: numbers and predicates the systems read. Renderer-independent by definition.",
+            "additionalProperties": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                    "id": { "type": "string" },
+                    "description": { "type": "string" },
+                    "params": { "type": "object" }
+                }
+            }
+        },
+        "systems": {
+            "type": "array",
+            "description": "ordered system ids (movement, combat, ai, quests, economy, progression…). Implementation lives in js/Game.js / Kit.onFrame; the spec records what runs and in which order so a migration can prove gameplay did not change.",
+            "items": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                    "id": { "type": "string" },
+                    "phase": { "type": "string", "enum": ["input", "logic", "resolve", "present"], "default": "logic" },
+                    "description": { "type": "string" }
+                }
+            }
+        },
+        "world": { "$ref": "#/definitions/world" },
+        "entities": { "type": "array", "items": { "$ref": "#/definitions/entity" } },
+        "scenes": {
+            "type": "array",
+            "description": "logical scenes. Each may carry its own presentation preset (MainMenu 2D, Gameplay full3d, Map isometric3d, Inventory 2D) without changing the game.",
+            "items": {
+                "type": "object",
+                "required": ["id"],
+                "additionalProperties": false,
+                "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" },
+                    "kind": { "type": "string", "enum": ["menu", "gameplay", "map", "overlay", "cutscene"], "default": "gameplay" },
+                    "renderProfile": { "type": ["string", "null"], "enum": ["2d", "2.5d", "isometric3d", "lowpoly3d", "full3d", null], "description": "null/absent — the project profile" },
+                    "camera": { "type": "object", "properties": { "mode": { "type": "string" }, "follow": { "type": ["string", "null"] } } },
+                    "entities": { "type": "array", "items": { "type": "string" }, "description": "entity ids present in the scene; empty/absent — all" },
+                    "ui": { "type": "array", "items": { "type": "string" }, "description": "UILayout element ids shown in the scene" }
+                }
+            }
+        },
+        "assets": {
+            "type": "array",
+            "description": "the semantic asset registry: role -> per-profile variants (see asset-schema.json)",
+            "items": { "$ref": "asset-schema.json#/definitions/role" }
+        },
+        "ui": {
+            "type": "object",
+            "description": "semantic UI definition. One definition for every profile; the profile only changes presentation (flat screen-space vs optional world-space).",
+            "additionalProperties": false,
+            "properties": {
+                "elements": { "type": "array", "items": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "role": { "type": "string" }, "binds": { "type": "string" } } } },
+                "space": { "type": "string", "enum": ["screen", "world", "mixed"], "default": "screen" }
+            }
+        },
+        "audio": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "cues": { "type": "array", "items": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "asset": { "type": "string" }, "loop": { "type": "boolean" }, "volume": { "type": "number" }, "spatial": { "type": "boolean" } } } },
+                "channels": { "type": "array", "items": { "type": "string" } }
+            }
+        },
+        "input": {
+            "type": "object",
+            "description": "action map: gameplay asks Input.isDown('move'), never for a key code or a renderer axis",
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+        },
+        "progression": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "level": { "type": "number" },
+                "xp": { "type": "number" },
+                "xpToLevel": { "type": "array", "items": { "type": "number" } },
+                "unlocks": { "type": "array", "items": { "type": "string" } },
+                "currencies": { "type": "object", "additionalProperties": { "type": "number" } }
+            }
+        },
+        "saveState": {
+            "type": "object",
+            "description": "the save schema. A migration must keep it byte-identical (Save.schemaHash()).",
+            "additionalProperties": false,
+            "properties": {
+                "schemaVersion": { "type": "integer", "minimum": 1 },
+                "slot": { "type": "string" },
+                "fields": { "type": "array", "items": { "type": "string" } },
+                "entityFields": { "type": "array", "items": { "type": "string" } }
+            }
+        },
+        "visualMigrationJournal": { "type": "array", "items": { "$ref": "migration-schema.json#/definitions/journalEntry" } }
+    },
+    "definitions": {
+        "vec3": {
+            "type": "object",
+            "required": ["x", "y", "z"],
+            "additionalProperties": false,
+            "properties": {
+                "x": { "type": "number", "description": "horizontal" },
+                "y": { "type": "number", "description": "vertical / height; 0 in a 2D presentation" },
+                "z": { "type": "number", "description": "depth / forward" }
+            }
+        },
+        "entity": {
+            "type": "object",
+            "required": ["id", "type"],
+            "additionalProperties": false,
+            "description": "A logical entity: stable identity + logic state + a per-profile visual reference. The visual block never contains engine objects, only asset roles / representation hints.",
+            "properties": {
+                "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,47}$", "description": "stable logical identity: preserved by every migration" },
+                "type": { "type": "string", "enum": ["character", "creature", "prop", "structure", "vehicle", "projectile", "item", "terrain", "trigger", "zone", "effect"] },
+                "name": { "type": "string" },
+                "tags": { "type": "array", "items": { "type": "string" } },
+                "scene": { "type": "string", "description": "scene id; absent — every scene" },
+                "position": { "$ref": "#/definitions/vec3" },
+                "rotation": { "$ref": "#/definitions/vec3", "description": "degrees; y is the heading" },
+                "scale": { "$ref": "#/definitions/vec3" },
+                "logic": { "type": "object", "description": "gameplay state: health, speed, inventory… never touched by a visual migration" },
+                "components": { "type": "object", "description": "named logic components (Health, EnemyAI, Inventory…)" },
+                "visual": {
+                    "type": "object",
+                    "description": "presentation: either a role in the asset registry ('player.visual') or an explicit per-profile map. A migration rewrites only this block.",
+                    "additionalProperties": false,
+                    "properties": {
+                        "role": { "type": "string", "description": "asset registry role, e.g. player.visual" },
+                        "representation": { "type": "string", "enum": ["sprite", "billboard", "model", "primitive", "tile", "terrain", "particle", "none"] },
+                        "renderLayer": { "type": "string", "enum": ["ground", "world", "actors", "overlay", "ui"] },
+                        "drawOrder": { "type": "integer" },
+                        "zIndex": { "type": "integer" },
+                        "size": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 3 },
+                        "animation": { "type": "object", "properties": { "default": { "type": "string" }, "states": { "type": "array", "items": { "type": "string" } } } },
+                        "profiles": {
+                            "type": "object",
+                            "description": "optional explicit per-profile overrides: { '2d': { type, asset }, full3d: { type, asset } }",
+                            "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                    "type": { "type": "string", "enum": ["sprite", "billboard", "model", "primitive", "tile", "terrain", "particle", "none"] },
+                                    "asset": { "type": "string" },
+                                    "kind": { "type": "string", "description": "Procedural3D kind for a primitive" },
+                                    "size": { "type": "array", "items": { "type": "number" } }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "world": {
+            "type": "object",
+            "description": "The logical map (WorldMap). One world for every profile: tiles, zones, triggers, spawn points, props, height. The renderer decides whether a wall is a tile, a sprite, a 3D tile, a low-poly mesh or a detailed mesh.",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string" },
+                "size": { "type": "object", "properties": { "width": { "type": "number" }, "height": { "type": "number" } }, "description": "logical world extent in px (x/z plane)" },
+                "tileSize": { "type": "number", "default": 64, "description": "px per logical tile" },
+                "tiles": {
+                    "type": "array",
+                    "description": "sparse tile list; everything not listed is 'empty'",
+                    "items": {
+                        "type": "object",
+                        "required": ["x", "z", "kind"],
+                        "properties": {
+                            "x": { "type": "integer" }, "z": { "type": "integer" },
+                            "kind": { "type": "string", "enum": ["empty", "floor", "wall", "water", "obstacle", "door", "trigger", "spawn", "enemySpawn", "loot"] },
+                            "data": { "type": "object" }
+                        }
+                    }
+                },
+                "rects": {
+                    "type": "array",
+                    "description": "bulk fill: { x, z, w, h, kind }",
+                    "items": { "type": "object", "required": ["x", "z", "w", "h", "kind"], "properties": { "x": { "type": "integer" }, "z": { "type": "integer" }, "w": { "type": "integer" }, "h": { "type": "integer" }, "kind": { "type": "string" } } }
+                },
+                "height": { "type": "object", "description": "logical height field: { base, amplitude, samples? } — the ground a rule reasons about, independent of the rendered terrain" },
+                "zones": { "type": "array", "items": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "kind": { "type": "string" }, "x": { "type": "number" }, "z": { "type": "number" }, "w": { "type": "number" }, "h": { "type": "number" }, "data": { "type": "object" } } } },
+                "triggers": { "type": "array", "items": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "x": { "type": "number" }, "z": { "type": "number" }, "r": { "type": "number" }, "event": { "type": "string" }, "once": { "type": "boolean" } } } },
+                "spawns": { "type": "array", "items": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "kind": { "type": "string", "enum": ["player", "enemy", "loot", "generic"] }, "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } } } },
+                "props": { "type": "array", "items": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "role": { "type": "string" }, "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" }, "heading": { "type": "number" } } } },
+                "navigation": { "type": "object", "properties": { "grid": { "type": "boolean" }, "diagonal": { "type": "boolean" } } }
+            }
+        }
+    }
+}

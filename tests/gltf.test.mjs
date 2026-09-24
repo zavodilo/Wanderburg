@@ -1,5 +1,5 @@
 // glTF models: the sample character (tools/make-character.mjs -> assets/models/character.glb)
-// and the clip cross-fade of js/Gltf3D.js. Babylon is not loaded — animation groups are fakes.
+// and the clip cross-fade of js/engine/Gltf3D.js. Babylon is not loaded — animation groups are fakes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
@@ -53,7 +53,7 @@ function fakeLayer() {
 }
 
 function makeClips() {
-    const page = loadScripts(['js/Constants.js', 'js/Gltf3D.js'], { pc: stub(), World3D: stub() });
+    const page = loadScripts(['js/Constants.js', 'js/engine/Gltf3D.js'], { pc: stub(), World3D: stub() });
     const Clips3D = page.get('Clips3D');
     const layer = fakeLayer();
     const entity = {

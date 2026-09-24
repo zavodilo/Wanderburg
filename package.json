@@ -1,6 +1,6 @@
 {
   "name": "wanderburg",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Wanderburg — a minimalist medieval roguelike about a castle on wheels: roll the valley, devour villages and forts, grow your hull, kill the wardens. Built on ArcEngine (PlayCanvas 2), zero dependencies, no build step.",
   "license": "MIT",
   "bin": {
@@ -12,7 +12,6 @@
     "libs/",
     "assets/",
     "claude/",
-    "scaffold/",
     "_utils/",
     "tests/",
     "index.html",
@@ -23,7 +22,13 @@
     "LICENSE",
     "globals.d.ts",
     "tsconfig.json",
-    "*.bat"
+    "*.bat",
+    "manifest/",
+    "presentation/",
+    "project.json",
+    "AGENTS.md",
+    "USER_GUIDE.md",
+    "*.sh"
   ],
   "engines": {
     "node": ">=20"

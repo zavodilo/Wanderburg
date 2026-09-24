@@ -13,7 +13,7 @@
 // The server contract version this client expects. Must match
 // EDITOR_API_VERSION in server.mjs — otherwise the editor warns that editor.bat
 // is running old code (Node reads server files only at process start).
-const EDITOR_API_VERSION = 19;
+const EDITOR_API_VERSION = 20;
 
 // Ink edges and outline levels: 0 — off, 1 — main objects (actor), 2 — and environment (prop).
 const SCHEMA_LEVELS = [
@@ -371,6 +371,50 @@ const KIT_SCHEMA = [
               label: { en: 'Stereo width', ru: 'Ширина стерео' },
               hint: { en: 'How far a sound at the side of the screen goes into one ear. 0 — mono',
                       ru: 'Насколько звук сбоку экрана уходит в одно ухо. 0 — моно' } },
+        ],
+    },
+    // Visual profile (js/presentation/*, js/engine/Camera3D.js, Sprite2D.js, Visual3D.js).
+    // WHICH profile/variant presents the game is not a constant — see the Profile tab, which
+    // edits js/GameSpec.js and presentation/variants/*.json. These are the shared tunables.
+    {
+        id: 'visual-profile',
+        label: { en: 'Visual profile', ru: 'Визуальный профиль' },
+        fields: [
+            { name: 'PROFILE_ORTHO_DIST', min: 500, max: 8000, step: 100,
+              label: { en: 'Ortho camera distance (px)', ru: 'Дистанция орто-камеры (px)' },
+              hint: { en: 'An orthographic camera (2D, 2.5D, isometric) has no perspective: this is only how far it stands, and it must stay inside the near..far clip',
+                      ru: 'У ортографической камеры (2D, 2.5D, изометрия) нет перспективы: это лишь расстояние до камеры, оно должно оставаться в пределах near..far' } },
+            { name: 'PROFILE_ORTHO_HEIGHT', min: 120, max: 2000, step: 10,
+              label: { en: 'Ortho half height (px)', ru: 'Полувысота орто (px)' },
+              hint: { en: 'Half of the orthographic frustum at zoom 1, used when the canvas size is unknown',
+                      ru: 'Половина высоты орто-фрустума при зуме 1, когда размер холста неизвестен' } },
+            { name: 'PROFILE_TILE_PX', min: 8, max: 512, step: 8,
+              label: { en: 'Logical tile (px)', ru: 'Логическая клетка (px)' },
+              hint: { en: 'The grid step of the world model (WorldMap). One tile is a 2D sprite, a 3D tile or a mesh — depending on the profile',
+                      ru: 'Шаг сетки модели мира (WorldMap). Клетка — спрайт, 3D-плитка или меш в зависимости от профиля' } },
+            { name: 'PROFILE_SPRITE_HEIGHT', min: 16, max: 512, step: 8,
+              label: { en: 'Sprite height (px)', ru: 'Высота спрайта (px)' },
+              hint: { en: 'Default height of a sprite/billboard whose asset registry entry has no size',
+                      ru: 'Высота по умолчанию для спрайта/биллборда без размера в реестре ассетов' } },
+            { name: 'PROFILE_SPRITE_ASPECT', min: 0.1, max: 4, step: 0.05,
+              label: { en: 'Placeholder aspect (w/h)', ru: 'Пропорции заглушки (ш/в)' },
+              hint: { en: 'Width / height of a generated placeholder sprite', ru: 'Ширина / высота генерируемого спрайта-заглушки' } },
+            { name: 'PROFILE_SIDE_EYE_PX', min: 0, max: 600, step: 10,
+              label: { en: 'Side view eye height (px)', ru: 'Высота взгляда сбоку (px)' },
+              hint: { en: 'How high above the ground a side/platformer camera keeps its look-at point',
+                      ru: 'Насколько высоко над землёй камера вида сбоку держит точку взгляда' } },
+            { name: 'PROFILE_MAX_TILES', min: 16, max: 20000, step: 16,
+              label: { en: 'Max drawn tiles', ru: 'Максимум рисуемых клеток' },
+              hint: { en: 'The most world tiles one presentation draws; beyond it the floor is the ground texture',
+                      ru: 'Сколько клеток мира рисует представление; сверх этого пол закрыт текстурой земли' } },
+            { name: 'PROFILE_BUDGET_STRICT', kind: 'select',
+              label: { en: 'Budget violations', ru: 'Нарушения бюджета' },
+              options: [
+                  { value: 0, label: { en: 'warn', ru: 'предупреждать' } },
+                  { value: 1, label: { en: 'fail the conversion', ru: 'валить конверсию' } },
+              ],
+              hint: { en: "A profile's performance budget (manifest/render-profiles.json) is checked on every conversion",
+                      ru: 'Бюджет производительности профиля (manifest/render-profiles.json) проверяется при каждой конверсии' } },
         ],
     },
 ];

@@ -8,7 +8,7 @@ description: How to check a change with your own eyes and numbers — the Browse
 The game and the editor run in the Browser pane from `.claude/launch.json` (`game` — 9378,
 `editor` — 9377; copy `claude/launch.json` if it is missing). Tests cover logic only — a
 change to geometry, materials, light or shaders is verified in the pane. `Debug3D`
-(`js/Debug3D.js`) is loaded in both pages; it does nothing until called.
+(`js/engine/Debug3D.js`) is loaded in both pages; it does nothing until called.
 
 ## The user sees the same tab
 

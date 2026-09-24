@@ -47,6 +47,10 @@
                     </select>
                     <button id="btn-lint" data-i18n="debug.lint" data-i18n-title="debug.lintTitle">Lint scene</button>
                 </div>
+                <div class="toolbar-group" id="variant-group">
+                    <select id="variant-select" data-i18n-title="var.title" title="The visual variant this editor instance presents"></select>
+                    <button id="btn-convert" data-i18n="var.convert" data-i18n-title="var.convertTitle">Convert…</button>
+                </div>
                 <div class="toolbar-group">
                     <label data-i18n-title="opt.toonTitle"><input type="checkbox" id="opt-toon"> <span data-i18n="opt.toon">toon shader</span></label>
                     <label data-i18n-title="opt.uiTitle"><input type="checkbox" id="opt-ui" checked> <span data-i18n="opt.ui">UI</span></label>
@@ -66,6 +70,7 @@
                 <button data-tab="settings" data-i18n="tab.settings">Global Settings</button>
                 <button data-tab="objects" data-i18n="tab.objects">Objects</button>
                 <button data-tab="ui" data-i18n="tab.ui">UI</button>
+                <button data-tab="profile" data-i18n="tab.profile">Profile</button>
             </div>
 
             <section class="pane-panel" data-tab="settings">
@@ -108,6 +113,20 @@
                 <div id="ui-props"></div>
                 <div id="ui-footer" data-i18n="ui.footer">Drag an element in the view, resize it by the handles. Arrows nudge by 1 px, Shift — by 10.</div>
             </section>
+            <section class="pane-panel" data-tab="profile" hidden>
+                <div id="profile-header">
+                    <div id="profile-title"></div>
+                    <div id="profile-actions">
+                        <button id="btn-preview-migration" data-i18n="var.preview" data-i18n-title="var.previewTitle">Preview migration</button>
+                        <button id="btn-apply-migration" data-i18n="var.apply" data-i18n-title="var.applyTitle">Apply migration</button>
+                        <button id="btn-create-all" data-i18n="var.createAll" data-i18n-title="var.createAllTitle">Create all variants</button>
+                    </div>
+                    <select id="target-profile" data-i18n-title="var.targetTitle" title="The profile to convert this project to"></select>
+                </div>
+                <div id="profile-body"></div>
+                <div id="profile-footer" data-i18n="var.footer">A conversion creates or updates a variant and never touches the game model: entity ids, rules, the world and the save schema stay byte-identical.</div>
+            </section>
+
         </aside>
     </main>
 
@@ -122,19 +141,50 @@
     <script src="/libs/playcanvas.min.js"></script>
     <script src="/js/Objects.js"></script>
     <script src="/js/UILayout.js"></script>
-    <script src="/js/Sound3D.js"></script>
-    <script src="/js/World3D.js"></script>
-    <script src="/js/Terrain3D.js"></script>
-    <script src="/js/CameraControl.js"></script>
-    <script src="/js/Model3D.js"></script>
-    <script src="/js/Gltf3D.js"></script>
-    <script src="/js/Location3D.js"></script>
-    <script src="/js/Debug3D.js"></script>
+    <script src="/js/engine/Sound3D.js"></script>
+    <script src="/js/engine/World3D.js"></script>
+    <script src="/js/engine/Terrain3D.js"></script>
+    <script src="/js/engine/CameraControl.js"></script>
+    <script src="/js/engine/Model3D.js"></script>
+    <script src="/js/engine/Gltf3D.js"></script>
+    <script src="/js/engine/Location3D.js"></script>
+    <script src="/js/engine/Debug3D.js"></script>
+    <script src="/js/engine/Procedural3D.js"></script>
+    <script src="/js/engine/Sprite2D.js"></script>
+    <script src="/js/engine/Camera3D.js"></script>
+    <script src="/js/engine/Lighting3D.js"></script>
+    <script src="/js/engine/Visual3D.js"></script>
+    <script src="/js/GameSpec.js"></script>
+    <script src="/js/presentation/RenderProfiles.js"></script>
+    <script src="/js/presentation/Variants.js"></script>
+    <script src="/js/core/SceneSchema.js"></script>
+    <script src="/js/core/Coords.js"></script>
+    <script src="/js/core/Entity.js"></script>
+    <script src="/js/core/World.js"></script>
+    <script src="/js/core/GameModel.js"></script>
+    <script src="/js/core/Input.js"></script>
+    <script src="/js/core/GameAudio.js"></script>
+    <script src="/js/core/Save.js"></script>
+    <script src="/js/presentation/AssetRegistry.js"></script>
+    <script src="/js/presentation/Variant.js"></script>
+    <script src="/js/presentation/RenderProfile.js"></script>
+    <script src="/js/presentation/Camera.js"></script>
+    <script src="/js/presentation/Lighting.js"></script>
+    <script src="/js/presentation/Animation.js"></script>
+    <script src="/js/presentation/VisualEntity.js"></script>
+    <script src="/js/presentation/Migration.js"></script>
+    <script src="/js/presentation/Runtime.js"></script>
+    <script src="/js/profiles/2d/profile.js"></script>
+    <script src="/js/profiles/2.5d/profile.js"></script>
+    <script src="/js/profiles/isometric3d/profile.js"></script>
+    <script src="/js/profiles/lowpoly3d/profile.js"></script>
+    <script src="/js/profiles/full3d/profile.js"></script>
     <script src="/js/UI.js"></script>
     <script src="./history.js"></script>
     <script src="./inspector.js"></script>
     <script src="./objects-panel.js"></script>
     <script src="./ui-panel.js"></script>
+    <script src="./profile-panel.js"></script>
     <script src="./lab.js"></script>
     <script src="./debug-tools.js"></script>
     <script src="./main.js"></script>
