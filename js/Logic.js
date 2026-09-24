@@ -877,7 +877,11 @@ class WBRun {
         // Steering needs way: a standing castle turns sluggishly, a rolling one turns well.
         const fwd = p.vx * Math.cos(p.heading) + p.vy * Math.sin(p.heading);
         const way = WB.M.clamp(Math.abs(fwd) / Math.max(40, st.speed), 0, 1);
-        const dirSign = fwd < -6 ? -1 : 1;
+        // REVERSE GEAR flips the rudder (a car backs up the other way) — but a gravity slide
+        // downhill must not: the whole valley is hills, and reading the flip off the actual
+        // velocity made a standing hull on a slope steer backwards ("влево поворачивает вправо").
+        // The driver's command decides, not the ground under the hull.
+        const dirSign = throttle < -0.1 ? -1 : 1;
         const turnRate = st.turn * (0.32 + 0.68 * way) * dirSign * (p.stun > 0 ? 0.35 : 1);
         p.heading += steer * turnRate * dt;
         p.heading = ((p.heading + Math.PI) % WB.M.TAU + WB.M.TAU) % WB.M.TAU - Math.PI;

@@ -242,3 +242,36 @@ test('наследие: покупка списывает лом и открыв
     assert.ok(!WB.Save.buy('mod_mortar'), 'повторно купить нельзя');
     assert.ok(!WB.Save.buy('ch_dreadnought') === false || true); // хватает или нет — не падает
 });
+
+// Руль на склоне: реверс определяет КОМАНДА газа, а не сползание. До правки dirSign читался из
+// фактической скорости, и корпус, стоящий на холме (а вся долина — холмы), сползал назад на
+// 6+ px/s — руль переключался в реверс, и «влево» поворачивало вправо. Регресс: игрок «не мог
+// управлять стрелками» на холмах при полностью живом маппинге клавиш.
+test('руль: команда влево поворачивает влево и стоя, и сползая назад по склону', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 4242, region: 0 });
+    const p = run.player;
+    // Найдём место со заметным склоном вдоль курса и поставим корпус туда стоящим.
+    let placed = false;
+    for (let a = 0; a < 24 && !placed; a++) {
+        const ang = (a / 24) * Math.PI * 2;
+        const x = run.region.cx + Math.cos(ang) * run.region.regionR * 0.5;
+        const y = run.region.cy + Math.sin(ang) * run.region.regionR * 0.5;
+        if (Math.abs(run.region.slopeAt(x, y, 0)) > 0.15) { p.x = x; p.y = y; placed = true; }
+    }
+    assert.ok(placed, 'в регионе нашёлся склон для проверки');
+    for (const slide of [0, -40]) {
+      p.vx = slide; p.vy = 0; p.heading = 0; p.stun = 0;
+      const h0 = p.heading;
+      for (let i = 0; i < 60; i++) run.update(1 / 60, { throttle: 0, steer: -1, boost: false });   // команда «влево», газа нет
+      const d = ((p.heading - h0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      assert.ok(d < -0.1, '.slide ' + slide + ': курс ушёл влево, а не на ' + Math.round(d * 57.3) + '°');
+    }
+    // А вот честный задний ход рулится как задний ход: влево означает вправо по курсу.
+    p.vx = 0; p.vy = 0; p.heading = 0;
+    const h1 = p.heading;
+    for (let i = 0; i < 60; i++) run.update(1 / 60, { throttle: -1, steer: -1, boost: false });
+    const dr = ((p.heading - h1 + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    assert.ok(dr > 0.1, 'в реверсе руль зеркалится: ' + Math.round(dr * 57.3) + '°');
+});

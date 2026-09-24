@@ -81,6 +81,10 @@ class Game {
             if (KEYMAP[e.code]) this._keys.delete(KEYMAP[e.code]);
         });
         window.addEventListener('blur', () => this._keys.clear());
+        // Embedded play (an iframe preview, a portal, a kiosk tab): the frame only owns the
+        // keyboard once the player has touched it — until then the arrows land in the parent
+        // page and the castle "does not obey the arrows". Take focus on the first gesture.
+        window.addEventListener('pointerdown', () => { try { window.focus(); } catch (e) { /* a sandboxed frame may refuse */ } }, { passive: true });
         this.touch = this.bindTouch();
     }
 
