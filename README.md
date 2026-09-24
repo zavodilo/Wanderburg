@@ -164,6 +164,7 @@ NODE_PATH=<puppeteer> node tools/headless-gate.mjs --all   # то же напр�
 node verify/input.mjs            # контракт ввода в Chrome: тру-клавиши + детерминированные кадры
 WB_URL=https://zavodilo.github.io/Wanderburg node verify/input.mjs   # тот же контракт по деплою
 node verify/deploy.mjs           # деплой (Pages): 4xx/5xx, консоль, меню и забег, скриншоты
+node verify/input-live.mjs       # те же клавиши в ЖИВОМ цикле кадров (нужен GPU-хост; без GPU честно пропускается)
 node verify/shots.mjs 40         # скриншоты живого забега с автопилотом (verify/mig-*.png)
 node verify/smoke.mjs 4242 4     # автопилот играет забеги: темп, ступени, смертность
 node verify/bossrun.mjs 777      # цепочка «варден → следующий рубеж» end-to-end
