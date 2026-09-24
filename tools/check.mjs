@@ -43,6 +43,7 @@ const STEPS = [
   // must match manifest/render-profiles.json and presentation/variants/*.json on disk.
   { flag: '--skills', title: 'профили и варианты (drift)', run: () => spawnSync(process.execPath, ['tools/render-profiles.mjs', '--check'], { cwd: ROOT, stdio: 'inherit' }) },
   { flag: '--skills', title: 'варианты проекта (drift)', run: () => spawnSync(process.execPath, ['tools/variants.mjs', '--check'], { cwd: ROOT, stdio: 'inherit' }) },
+  { flag: '--skills', title: 'геометрия CC0-пака (drift)', run: () => spawnSync(process.execPath, ['tools/make-pack-geo.mjs', '--check'], { cwd: ROOT, stdio: 'inherit' }) },
   { flag: '--profiles', title: 'матрица профилей и конверсий', run: () => spawnSync(process.execPath, ['tools/profile-matrix.mjs'], { cwd: ROOT, stdio: 'inherit' }) },
   { flag: '--render', title: 'headless render gate', run: () => spawnSync(process.execPath, ['tools/headless-gate.mjs', '--render'], { cwd: ROOT, stdio: 'inherit' }) },
   { flag: '--visual', title: 'headless visual smoke', run: () => spawnSync(process.execPath, ['tools/headless-gate.mjs', '--visual'], { cwd: ROOT, stdio: 'inherit' }) },

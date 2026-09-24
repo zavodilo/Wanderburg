@@ -140,8 +140,15 @@ test('аудио-кью и роли реестра: файлы существу�
     }
     // no imported unit art: the three ground textures are the only files the roles know
     const withFiles = SPEC.assets.filter(r => Object.values(r.variants || {}).some(v => v.asset));
-    assert.equal(JSON.stringify(withFiles.map(r => r.role).sort()),
-        JSON.stringify(['world.ground.grass.visual', 'world.ground.sand.visual', 'world.ground.snow.visual']));
+    const roles = new Set(withFiles.map(r => r.role));
+    for (const want of ['world.ground.grass.visual', 'world.ground.sand.visual', 'world.ground.snow.visual',
+        'prop.tree.visual', 'prop.rock.visual', 'prop.bush.visual', 'structure.village.visual', 'world.gate.visual']) {
+        assert.ok(roles.has(want), want + ': роль обеспечена файлом');
+    }
+    // 3D profiles resolve the flora/gate roles to the CC0 pack, not to a placeholder
+    for (const pid of ['isometric3d', 'lowpoly3d', 'full3d']) {
+        assert.equal(AssetRegistry.resolve('prop.tree.visual', pid, { entityType: 'prop' }).resolvedBy, 'variant', pid);
+    }
 });
 
 test('пять вариантов — один проект: contract hash и схема сохранений общие', () => {

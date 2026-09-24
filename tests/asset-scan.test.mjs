@@ -69,6 +69,19 @@ test('libs/, tools/, _utils/ и файлы вне .js/.html/.css ссылкам�
   assert.deepEqual(scan.unused, ['assets/a.png']);
 });
 
+// CODE_FILES is what puts a <script> into the archive: a game file missing from it ships a broken
+// zip (the page 404s its own logic). The list and index.html must never drift apart.
+test('CODE_FILES и <script> в index.html — один и тот же список, в одном порядке', async () => {
+  const { CODE_FILES } = await import('../tools/asset-scan.mjs');
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
+  const code = CODE_FILES.filter(f => f !== 'index.html' && !f.startsWith('libs/'));
+  const libs = CODE_FILES.filter(f => f.startsWith('libs/'));
+  assert.deepEqual(scripts.filter(x => !x.startsWith('libs/')), code, 'каждый <script> js/ обязан быть в CODE_FILES');
+  assert.deepEqual(scripts.filter(x => x.startsWith('libs/')), libs, 'libs — в конце, как в index.html');
+  for (const f of CODE_FILES) assert.ok(fs.existsSync(path.join(ROOT, f)), f + ' из CODE_FILES нет на диске');
+});
+
 test('в проекте нет ссылок на пропавшие ассеты', async () => {
   const scan = await collectRefs(ROOT);
   assert.deepEqual(scan.missing, []);

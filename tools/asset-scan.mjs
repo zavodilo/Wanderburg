@@ -15,7 +15,10 @@
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 
-// Paths that cannot be picked up as a literal. Empty for now — all references are literal.
+// Paths that cannot be picked up as a literal. The pack's Castle Kit GLBs reference their colormap
+// from inside the binary container, but nothing loads those GLBs at runtime — tools/make-pack-geo.mjs
+// bakes their GEOMETRY into js/WanderPackGeo.js — so the pack ships as bake provenance (with its
+// CC0 licenses and the texture) and stays out of the player archive by design.
 export const EXTRA_REFS = [];
 
 // Files needed in the build that are not "assets". A new <script> in
@@ -36,7 +39,12 @@ export const CODE_FILES = [
   'js/presentation/VisualEntity.js', 'js/presentation/Migration.js', 'js/presentation/Runtime.js',
   'js/profiles/2d/profile.js', 'js/profiles/2.5d/profile.js', 'js/profiles/isometric3d/profile.js',
   'js/profiles/lowpoly3d/profile.js', 'js/profiles/full3d/profile.js',
-  'js/UI.js', 'js/core/SceneAPI.js', 'js/Game.js', 'js/main.js',
+  'js/UI.js', 'js/core/SceneAPI.js',
+  // Wanderburg's own files, in index.html's order: data, simulation, mesh, baked pack geo, view,
+  // sound, HUD, orchestrator
+  'js/Content.js', 'js/Logic.js', 'js/WanderMesh.js', 'js/WanderPackGeo.js', 'js/WanderView.js',
+  'js/WanderAudio.js', 'js/Hud.js',
+  'js/Game.js', 'js/main.js',
   'libs/simplex-noise.js', 'libs/playcanvas.min.js',
 ];
 

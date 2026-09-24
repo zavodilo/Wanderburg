@@ -213,6 +213,11 @@ const GAME_SPEC = {
         },
         {
             role: 'structure.village.visual', kind: 'visual', entityType: 'structure',
+            variants: {
+                isometric3d: { type: 'model', asset: 'assets/models/pack/tent_smallOpen.glb' },
+                lowpoly3d: { type: 'model', asset: 'assets/models/pack/tent_smallOpen.glb' },
+                full3d: { type: 'model', asset: 'assets/models/pack/tent_smallOpen.glb' }
+            },
             placeholder: { kind: 'box', color: '#7d5636', label: 'village', size: [70, 60] },
             tags: ['food', 'devourable']
         },
@@ -223,6 +228,11 @@ const GAME_SPEC = {
         },
         {
             role: 'world.gate.visual', kind: 'visual', entityType: 'structure',
+            variants: {
+                isometric3d: { type: 'model', asset: 'assets/models/pack/gate.glb' },
+                lowpoly3d: { type: 'model', asset: 'assets/models/pack/gate.glb' },
+                full3d: { type: 'model', asset: 'assets/models/pack/gate.glb' }
+            },
             placeholder: { kind: 'pole', color: '#d8ab52', label: 'gate', size: [92, 120] },
             tags: ['objective']
         },
@@ -243,16 +253,31 @@ const GAME_SPEC = {
         },
         {
             role: 'prop.tree.visual', kind: 'visual', entityType: 'prop',
+            variants: {
+                isometric3d: { type: 'model', asset: 'assets/models/pack/tree_cone.glb' },
+                lowpoly3d: { type: 'model', asset: 'assets/models/pack/tree_cone.glb' },
+                full3d: { type: 'model', asset: 'assets/models/pack/tree_cone.glb' }
+            },
             placeholder: { kind: 'tree', color: '#3f7a34', label: 'tree', size: [40, 70] },
             tags: ['scenery', 'batched']
         },
         {
             role: 'prop.rock.visual', kind: 'visual', entityType: 'prop',
+            variants: {
+                isometric3d: { type: 'model', asset: 'assets/models/pack/rock_largeA.glb' },
+                lowpoly3d: { type: 'model', asset: 'assets/models/pack/rock_largeA.glb' },
+                full3d: { type: 'model', asset: 'assets/models/pack/rock_largeA.glb' }
+            },
             placeholder: { kind: 'rock', color: '#7c7f84', label: 'rock', size: [34, 26] },
             tags: ['scenery', 'batched']
         },
         {
             role: 'prop.bush.visual', kind: 'visual', entityType: 'prop',
+            variants: {
+                isometric3d: { type: 'model', asset: 'assets/models/pack/plant_bush.glb' },
+                lowpoly3d: { type: 'model', asset: 'assets/models/pack/plant_bush.glb' },
+                full3d: { type: 'model', asset: 'assets/models/pack/plant_bush.glb' }
+            },
             placeholder: { kind: 'crate', color: '#8a7a34', label: 'bush', size: [24, 18] },
             tags: ['scenery', 'batched']
         },

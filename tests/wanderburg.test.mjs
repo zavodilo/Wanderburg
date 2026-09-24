@@ -275,3 +275,47 @@ test('руль: команда влево поворачивает влево и
     const dr = ((p.heading - h1 + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     assert.ok(dr > 0.1, 'в реверсе руль зеркалится: ' + Math.round(dr * 57.3) + '°');
 });
+
+// «Города дёргаются как умалишённые»: nearestThreat возвращает ближайший замок, и когда игрок с
+// бродячей крепостью почти равноудалены, «ближайший» переключается КАЖДЫЙ кадр — бегущая деревня
+// разворачивалась на ~180° каждый кадр. Лечится гистерезисом (fleeThreat: новый угрожающий ближе
+// минимум на 20% или на 80 px) и ограниченной скоростью поворота (turnToward). Регресс меряет
+// максимальный поворот за кадр у бегущих: waggon train не телепортирует курс.
+test('бегущие не дёргаются: смена угрозы и поворот ограничены за кадр', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 777, region: 0 });
+    const region = run.region;
+    const village = region.byType('village')[0];
+    assert.ok(village, 'в регионе есть деревня');
+    // Два замка по разные стороны деревни, на границе её радиуса страха: игрок ходит туда-сюда
+    // через линию равенства — без гистерезиса «ближайший» пляшет каждый кадр.
+    const d = 300;
+    const player = run.player;
+    const foe = region.byType('castle').find(c => c.faction !== 'player');
+    assert.ok(foe, 'есть бродячая крепость для симметрии');
+    foe.x = village.x - d; foe.y = village.y;
+    foe.ai = null;                       // крепость стоит: плясать должен только выбор угрозы
+    run.grace = 0;
+    let worstVillage = 0, worstSmall = 0, prevV = village.heading;
+    const prevSmall = new Map();
+    for (let i = 0; i < 240; i++) {
+        player.x = village.x + d + Math.sin(i * 0.7) * 60;   // пересекает линию равенства постоянно
+        player.y = village.y + Math.cos(i * 0.31) * 24;
+        run.update(1 / 60, { throttle: 0, steer: 0, boost: false });
+        worstVillage = Math.max(worstVillage, Math.abs(WB.M.angleDelta(prevV, village.heading)));
+        prevV = village.heading;
+        for (const pe of village.peasants) {
+            const was = prevSmall.get(pe.id);
+            if (was != null) worstSmall = Math.max(worstSmall, Math.abs(WB.M.angleDelta(was, pe.heading)));
+            prevSmall.set(pe.id, pe.heading);
+        }
+    }
+    // The design caps: a waggon train turns at 1.6 rad/s, a running peasant at 6 rad/s. Before
+    // the fix a threat swap spun them by ~180° in ONE frame (3.1 rad), three orders above the cap.
+    assert.ok(worstVillage <= 1.6 / 60 + 1e-9, 'деревня поворачивает не быстрее своего фургона: ' + (worstVillage * 57.3).toFixed(1) + '°/кадр');
+    assert.ok(worstSmall <= 6 / 60 + 1e-9, 'крестьянин поворачивает не быстрее человека: ' + (worstSmall * 57.3).toFixed(1) + '°/кадр');
+    assert.ok(worstVillage < 0.2, 'и уж точно не разворот на пол-оборота за кадр: ' + (worstVillage * 57.3).toFixed(1) + '°/кадр');
+    // И деревня при этом реально убегает, а не застыла: страх жив.
+    assert.ok(village.flee > 0 || WB.M.dist(player.x, player.y, village.x, village.y) > 460, 'деревня продолжает бояться');
+});

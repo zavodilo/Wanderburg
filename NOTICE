@@ -26,3 +26,12 @@ reference for the agent-skills packaging (Phase A of `ROADMAP.md`).
 
 `libs/simplex-noise.js` — https://github.com/jwagner/simplex-noise.js
 Copyright (c) 2022 Jonas Wagner, MIT License.
+
+Kenney — Nature Kit (2.1) and Castle Kit
+    License: Creative Commons CC0 (https://creativecommons.org/publicdomain/zero/1.0/)
+    Source: https://kenney.nl/assets/nature-kit , https://kenney.nl/assets/castle-kit
+    (mirrors used here: opengameart.org/content/nature-kit , opengameart.org/content/castle-kit)
+    Used as: assets/models/pack/*.glb (the CC0 sources, with their license texts) and
+    js/WanderPackGeo.js — geometry baked from those models by tools/make-pack-geo.mjs
+    (trees, rocks, bushes of the valley; hamlet dressing; the warden gatehouse; hull banners).
+    Colors of the baked castle geometry are the game's own palette, not the pack's texture.

@@ -290,15 +290,58 @@ class WanderView {
         }
     }
 
+    /**
+     * Baked CC0 pack geometry (js/WanderPackGeo.js, Kenney Nature/Castle Kits) as recipe parts:
+     * [{ key, hex, geo, opts }] — the same shape the procedural builders return, so a pack model
+     * costs nothing extra (it merges into whatever batch or recipe uses it). tint/t mix the pack's
+     * own material colors toward the game's palette; [] when the pack is absent — the procedural
+     * builders below are the fallback, per the kit's "a missing asset never holes the scene".
+     */
+    packParts(kind, seed, height, tint, t, pal) {
+        if (typeof WANDER_PACK_GEO === 'undefined') return [];
+        const list = WANDER_PACK_GEO[kind];
+        if (!list || !list.length) return [];
+        const v = list[seed % list.length];
+        const yaw = ((seed >> 3) & 7) * 0.7853981 + (seed & 3) * 0.21;
+        const out = [];
+        for (let pi = 0; pi < v.parts.length; pi++) {
+            const part = v.parts[pi];
+            // The pack's own palette is Kenney's saturated mint/terracotta; the valley is the
+            // biome's. Mix per PART: foliage toward the biome's leaf, wood toward its trunk, so a
+            // packed tree still reads as a tree of THIS region (and a tinted castle piece keeps
+            // its stone/wood reading).
+            let target = tint, k = t == null ? 0.6 : t;
+            if (pal) {
+                const g = (part.hex >> 8) & 255, r = (part.hex >> 16) & 255;
+                target = g > r ? pal.green : pal.brown;
+            }
+            out.push({
+                key: kind + pi,
+                hex: target == null ? part.hex : WB.mixHex(part.hex, target, k),
+                geo: WanderMesh.xform(part.pos, { s: height, yaw: yaw }),
+                opts: { ink: false }
+            });
+        }
+        return out;
+    }
+
     /** One scenery item as a list of { geo, hex } parts, relative to its own base. */
     sceneryParts(s, biome) {
         const scale = s.s;
         if (s.kind === 'tree') {
             const shade = (s.seed & 3) === 0 ? WB.PAL.leafDark : biome.treeColor;
-            return WanderMesh.tree(s.seed, shade, scale);
+            const pack = this.packParts('tree', s.seed, 84 * scale, shade, 0.82, { green: shade, brown: WB.PAL.trunk });
+            return pack.length ? pack : WanderMesh.tree(s.seed, shade, scale);
         }
-        if (s.kind === 'rock') return WanderMesh.rock(s.seed, biome.rockColor, scale);
-        if (s.kind === 'bush') return WanderMesh.bush(s.seed, (s.seed & 1) ? WB.PAL.leafDark : biome.treeColor, scale);
+        if (s.kind === 'rock') {
+            const pack = this.packParts('rock', s.seed, 34 * scale, biome.rockColor, 0.9, { green: biome.rockColor, brown: biome.rockColor });
+            return pack.length ? pack : WanderMesh.rock(s.seed, biome.rockColor, scale);
+        }
+        if (s.kind === 'bush') {
+            const bshade = (s.seed & 1) ? WB.PAL.leafDark : biome.treeColor;
+            const pack = this.packParts('bush', s.seed, 22 * scale, bshade, 0.8, { green: bshade, brown: WB.PAL.trunk });
+            return pack.length ? pack : WanderMesh.bush(s.seed, bshade, scale);
+        }
         const cap = biome.ground === 2 ? 0xf4f8fb : biome.ground === 1 ? 0xe8dcc6 : 0xeaf0f4;
         return WanderMesh.peak(s.seed, biome.rockColor, scale, cap);
     }
@@ -434,6 +477,13 @@ class WanderView {
         const layout = WanderMesh.castleParts(c);
         const recipe = layout.parts.slice();
         for (const w of WanderMesh.castleWheels(layout, c.faction)) recipe.push(w);
+        // A CC0 banner (Kenney Castle Kit geometry) over the keep, in the faction's color: it rides
+        // the hull and tilts with it because it is part of the same recipe — no extra draw call.
+        const flagHex = c.faction === 'player' ? WB.PAL.banner : (c.boss ? WB.PAL.enemyDark : WB.PAL.enemy);
+        const flag = this.packParts('flag', (c.id || 1) + (c.faction === 'player' ? 3 : 7), 44 + c.tier * 5, flagHex, 0.8);
+        for (let i = 0; i < flag.length; i++) {
+            recipe.push({ key: 'flag' + i, hex: flag[i].hex, opts: flag[i].opts, geo: WanderMesh.translate(flag[i].geo, 0, layout.deckY + layout.wallH, 0), at: null });
+        }
         const rec = this.makeEntity('castle-' + c.faction + '-' + c.kind + '-t' + c.tier, recipe, 'actor', { ink: true });
         rec.castle = c;
         rec.layout = layout;
@@ -515,6 +565,22 @@ class WanderView {
                 });
             }
         }
+        // CC0 hamlet dressing (Kenney Nature Kit): two tents, a fence, a campfire and a log pile
+        // among the cottages — baked geometry, merged into the village's own draw calls.
+        const dress = [['tent', 40, WB.PAL.thatch, 0.85], ['tent', 33, WB.PAL.thatch, 0.85],
+            ['fence', 14, WB.PAL.wood, 0.8], ['campfire', 13, null, 0], ['log', 16, WB.PAL.wood, 0.7]];
+        for (let i = 0; i < dress.length; i++) {
+            const kind = dress[i][0], h = dress[i][1], tint = dress[i][2], t = dress[i][3];
+            const vseed = v.seed || v.id || 1;
+            const ang = (i / dress.length) * Math.PI * 2 + (vseed % 7) * 0.4;
+            const rr = 52 + (i % 3) * 16;
+            for (const p of this.packParts(kind, vseed + i * 3 + 1, h, tint, t)) {
+                recipe.push({
+                    key: 'pack' + kind + i + ':' + recipe.length, hex: p.hex, opts: p.opts,
+                    geo: WanderMesh.translate(p.geo, Math.cos(ang) * rr, 0, Math.sin(ang) * rr), at: null
+                });
+            }
+        }
         // Merge same-key parts so a village is a handful of draw calls, not one per house.
         const merged = new Map();
         for (const p of recipe) {
@@ -553,7 +619,26 @@ class WanderView {
 
     buildGate(g) {
         const parts = this.staticRecipe('gate', () => WanderMesh.gate());
-        const rec = this.makeEntity('gate', parts, 'actor', { ink: true });
+        // The warden's gate is ARCHITECTURE: a Kenney Castle Kit gatehouse between two towers with
+        // curtain walls, and two derelict catapults in the courtyard — baked geo merged into the
+        // gate's own draw calls. The procedural doors inside still open (rec.barrier).
+        const pack = this.staticRecipe('gate-pack', () => {
+            const out = [];
+            const put = (kind, seed, h, dx, dz, yaw) => {
+                for (const p of this.packParts(kind, seed, h, null, 0)) {
+                    out.push({ key: kind + out.length, hex: p.hex, opts: p.opts, geo: WanderMesh.xform(p.geo, { yaw: yaw, dx: dx, dz: dz }) });
+                }
+            };
+            put('gate', 7, 150, 0, 0, 0);
+            put('tower', 7, 150, -96, 0, 0);
+            put('tower', 8, 150, 96, 0, 0);
+            put('wall', 7, 80, 0, -70, Math.PI / 2);
+            put('wall', 8, 80, 0, 70, Math.PI / 2);
+            put('catapult', 7, 58, 165, 120, 0.7);
+            put('catapult', 8, 58, -150, 140, -0.5);
+            return out;
+        });
+        const rec = this.makeEntity('gate', [...parts, ...pack], 'actor', { ink: true });
         rec.gate = g;
         return rec;
     }

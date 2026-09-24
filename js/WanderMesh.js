@@ -243,6 +243,23 @@ const WanderMesh = {
     },
 
     /** Translate a geometry list by (dx, dy, dz) in WORLD space (a house placed inside a village). */
+    // Uniform scale, a yaw (rad) about the base, then an offset: baked pack geometry (js/WanderPackGeo.js)
+    // into recipe space. The arrays are positions only (triangles), so a plain affine pass is enough.
+    xform(geo, o) {
+        const s = (o && o.s != null) ? o.s : 1;
+        const yaw = (o && o.yaw) || 0;
+        const c = Math.cos(yaw), sn = Math.sin(yaw);
+        const dx = (o && o.dx) || 0, dy = (o && o.dy) || 0, dz = (o && o.dz) || 0;
+        const out = new Array(geo.length);
+        for (let i = 0; i < geo.length; i += 3) {
+            const x = geo[i] * s, z = geo[i + 2] * s;
+            out[i] = x * c - z * sn + dx;
+            out[i + 1] = geo[i + 1] * s + dy;
+            out[i + 2] = x * sn + z * c + dz;
+        }
+        return out;
+    },
+
     translate(geo, dx, dy, dz) {
         const out = new Array(geo.length);
         for (let i = 0; i < geo.length; i += 3) { out[i] = geo[i] + dx; out[i + 1] = geo[i + 1] + dy; out[i + 2] = geo[i + 2] + dz; }

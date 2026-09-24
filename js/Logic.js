@@ -78,7 +78,14 @@ WB.M = {
         return d;
     },
     /** Frame-rate independent exponential smoothing. */
-    damp: (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt))
+    damp: (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt)),
+    /** Turn cur toward want (rad) by at most maxDelta (rad), the short way round. */
+    turnToward: (cur, want, maxDelta) => {
+        const k = WB.M.clamp(WB.M.angleDelta(cur, want), -maxDelta, maxDelta);
+        let out = cur + k;
+        if (out > Math.PI) out -= WB.M.TAU; else if (out < -Math.PI) out += WB.M.TAU;
+        return out;
+    }
 };
 
 // --- Persistent save (meta-progression and settings) -----------------------------
@@ -1310,9 +1317,11 @@ class WBRun {
         if (k.state === 'home' && dHome < 90) { k.state = 'roam'; k.think = 0; }
         if (k.state === 'attack' && p) { k.tx = p.x; k.ty = p.y; }
         const a = Math.atan2(k.ty - k.y, k.tx - k.x);
-        k.heading = a;
+        // A horse turns, it does not pivot: snap-heading made charging knights spin in place
+        // whenever their target crossed behind them.
+        k.heading = WB.M.turnToward(k.heading, a, 3.6 * dt);
         const sp = k.state === 'attack' ? k.speed : k.speed * 0.55;
-        k.x += Math.cos(a) * sp * dt; k.y += Math.sin(a) * sp * dt;
+        k.x += Math.cos(k.heading) * sp * dt; k.y += Math.sin(k.heading) * sp * dt;
         k.h = this.region.heightAt(k.x, k.y);
         if (k.state === 'attack' && p && dPlayer < p.r + 26 && k.cd <= 0) {
             k.cd = k.hitCd;
@@ -1333,13 +1342,17 @@ class WBRun {
             }
             return;
         }
-        const threat = this.nearestThreat(pe.x, pe.y, 420);
+        const threat = this.fleeThreat(pe, 420);
         if (threat) {
-            const a = Math.atan2(pe.y - threat.y, pe.x - threat.x) + this.rnd.range(-0.25, 0.25);
-            pe.heading = a;
+            // Panic is a run, not a seizure: the scatter angle is re-rolled a couple of times a
+            // second, and the body turns at a human rate.
+            pe.jitT = (pe.jitT || 0) - dt;
+            if (pe.jitT <= 0) { pe.jitT = this.rnd.range(0.3, 0.9); pe.jit = this.rnd.range(-0.35, 0.35); }
+            const a = Math.atan2(pe.y - threat.y, pe.x - threat.x) + (pe.jit || 0);
+            pe.heading = WB.M.turnToward(pe.heading, a, 6 * dt);
             const fear = this.player && this.player.stats ? this.player.stats.fear : 0;
             const sp = pe.speed * (threat.faction === 'player' ? (fear > 0 ? 0.72 : 1) : 1);
-            pe.x += Math.cos(a) * sp * dt; pe.y += Math.sin(a) * sp * dt;
+            pe.x += Math.cos(pe.heading) * sp * dt; pe.y += Math.sin(pe.heading) * sp * dt;
             pe.panic = 1;
             if (fear > 0 && threat.faction === 'player' && WB.M.dist(pe.x, pe.y, threat.x, threat.y) < 200 && this.rnd.chance(dt * 1.2)) {
                 pe.surrender = true;
@@ -1364,11 +1377,13 @@ class WBRun {
     }
 
     stepSheep(s, dt) {
-        const threat = this.nearestThreat(s.x, s.y, 300);
+        const threat = this.fleeThreat(s, 300);
         if (threat) {
-            const a = Math.atan2(s.y - threat.y, s.x - threat.x) + this.rnd.range(-0.6, 0.6);
-            s.heading = a;
-            s.x += Math.cos(a) * s.speed * dt; s.y += Math.sin(a) * s.speed * dt;
+            s.jitT = (s.jitT || 0) - dt;
+            if (s.jitT <= 0) { s.jitT = this.rnd.range(0.4, 1); s.jit = this.rnd.range(-0.5, 0.5); }
+            const a = Math.atan2(s.y - threat.y, s.x - threat.x) + (s.jit || 0);
+            s.heading = WB.M.turnToward(s.heading, a, 4.5 * dt);
+            s.x += Math.cos(s.heading) * s.speed * dt; s.y += Math.sin(s.heading) * s.speed * dt;
             s.panic = 1;
         } else {
             s.panic = Math.max(0, s.panic - dt);
@@ -1381,6 +1396,23 @@ class WBRun {
             const d = Math.hypot(s.x, s.y) || 1, k = (this.region.regionR - 20) / d;
             s.x *= k; s.y *= k;
         }
+    }
+
+    /**
+     * The castle this little thing runs from — with HYSTERESIS. nearestThreat alone makes two
+     * castles at almost the same distance swap "nearest" frame to frame, and the fleeing entity
+     * then snap-turns by ~180° every frame: the villages and herds "jitter like mad" whenever the
+     * player and a roaming fortress both ride nearby. A new threat wins only when it is clearly
+     * closer (20% or 80 px); the old one is kept until it dies or leaves the range.
+     */
+    fleeThreat(e, range) {
+        const t = this.nearestThreat(e.x, e.y, range);
+        const old = e._threat && !e._threat.dead && e._threat.alive !== false ? e._threat : null;
+        if (!old || old === t) { e._threat = t || null; return t; }
+        if (!t) { e._threat = null; return null; }
+        const dNew = WB.M.dist2(e.x, e.y, t.x, t.y), dOld = WB.M.dist2(e.x, e.y, old.x, old.y);
+        if (dNew < dOld * 0.64 || dOld - dNew > 6400) { e._threat = t; return t; }
+        return old;
     }
 
     /** The nearest castle that this little thing is afraid of. */
@@ -1398,23 +1430,25 @@ class WBRun {
         for (const e of this.region.entities) {
             if (e.dead) continue;
             if (e.type === 'village') {
-                // A village walks away from the nearest castle, slowly, as a whole.
-                const t = this.nearestThreat(e.x, e.y, 460);
+                // A village walks away from the nearest castle, slowly, as a whole. A village is
+                // a waggon train: it turns at a waggon's rate (1.6 rad/s), never snaps.
+                const t = this.fleeThreat(e, 460);
                 e.flee = t ? 1 : Math.max(0, (e.flee || 0) - dt);
                 if (t) {
                     const a = Math.atan2(e.y - t.y, e.x - t.x);
-                    e.heading = a;
+                    e.heading = WB.M.turnToward(e.heading, a, 1.6 * dt);
                     const sp = 34 * (t.faction === 'player' ? 1 : 0.7);
-                    const nx = e.x + Math.cos(a) * sp * dt, ny = e.y + Math.sin(a) * sp * dt;
+                    const nx = e.x + Math.cos(e.heading) * sp * dt, ny = e.y + Math.sin(e.heading) * sp * dt;
                     if (this.region.inside(nx, ny, 90)) { e.x = nx; e.y = ny; }
-                    for (const pe of e.peasants) { if (!pe.dead) { pe.x += Math.cos(a) * sp * dt; pe.y += Math.sin(a) * sp * dt; } }
+                    for (const pe of e.peasants) { if (!pe.dead) { pe.x += Math.cos(e.heading) * sp * dt; pe.y += Math.sin(e.heading) * sp * dt; } }
                 }
                 e.h = this.region.heightAt(e.x, e.y);
             } else if (e.type === 'herd') {
-                const t = this.nearestThreat(e.x, e.y, 380);
+                const t = this.fleeThreat(e, 380);
                 if (t) {
                     const a = Math.atan2(e.y - t.y, e.x - t.x);
-                    const nx = e.x + Math.cos(a) * 22 * dt, ny = e.y + Math.sin(a) * 22 * dt;
+                    e.heading = WB.M.turnToward(e.heading == null ? a : e.heading, a, 2.2 * dt);
+                    const nx = e.x + Math.cos(e.heading) * 22 * dt, ny = e.y + Math.sin(e.heading) * 22 * dt;
                     if (this.region.inside(nx, ny, 90)) { e.x = nx; e.y = ny; }
                 }
                 e.h = this.region.heightAt(e.x, e.y);

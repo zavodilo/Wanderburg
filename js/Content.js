@@ -31,6 +31,13 @@ WB.PAL = {
     white: 0xf2f4f5, black: 0x1a1c1e
 };
 
+/** Linear mix of two 0xRRGGBB colors (t: 0 — a, 1 — b): the CC0 pack's own palette meets the biome's. */
+WB.mixHex = (a, b, t) => {
+    const k = WB.M.clamp(t == null ? 0.5 : t, 0, 1);
+    const ch = (sh) => Math.round((((a >> sh) & 255) * (1 - k)) + (((b >> sh) & 255) * k));
+    return ((ch(16) << 16) | (ch(8) << 8) | ch(0)) >>> 0;
+};
+
 /** 0xRRGGBB -> '#rrggbb' for the DOM HUD. */
 WB.css = (hex) => '#' + ('000000' + (hex >>> 0).toString(16)).slice(-6);
 
