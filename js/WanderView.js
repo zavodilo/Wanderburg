@@ -314,12 +314,16 @@ class WanderView {
             // its stone/wood reading).
             let target = tint, k = t == null ? 0.6 : t;
             if (pal) {
-                if (part.hex === 0xffffff && pal.cap != null) target = pal.cap;   // a baked snow cap
-                else {
+                if (part.tag && pal[part.tag] != null) target = pal[part.tag];    // tagged composite piece
+                else if (part.hex === 0xffffff && pal.cap != null) target = pal.cap;   // a baked snow cap
+                else if (pal.green != null || pal.brown != null) {
                     const g = (part.hex >> 8) & 255, r = (part.hex >> 16) & 255;
                     target = g > r ? pal.green : pal.brown;
                 }
             }
+            // A palette without a slot for this part keeps the baked color: a NaN target used to
+            // melt a whole village into white blobs.
+            if (target == null || !Number.isFinite(target)) target = part.hex;
             out.push({
                 key: kind + pi,
                 hex: target == null ? part.hex : WB.mixHex(part.hex, target, k),
@@ -577,12 +581,20 @@ class WanderView {
         for (let i = 0; i < v.parts.length; i++) {
             const p = v.parts[i];
             const name = p.kind === 'chapel' ? 'chapel' : 'house' + (p.seed % 6);
-            const parts = this.staticRecipe(name + ':' + (p.seed % 97), () =>
+            // M-03: a hamlet of CC0 composites (a story with windows + a pitched roof + a door;
+            // the chapel is a round tower under a cone). Roofs alternate thatch and tile red by
+            // seed, walls wear the biome's plaster. No pack — the procedural cottages stay.
+            const roofHex = (p.seed & 1) ? WB.PAL.roof : WB.PAL.thatch;
+            const pack = this.packParts(p.kind === 'chapel' ? 'chapel' : 'house', p.seed,
+                p.kind === 'chapel' ? 104 : 62 * (0.9 + (p.s || 1) * 0.2), null, 0.85,
+                { wall: WB.PAL.peasant, roof: roofHex, door: WB.PAL.woodDark });
+            const yaw = (p.seed % 4) * (Math.PI / 2) + ((p.seed >> 2) & 3) * 0.12;
+            const parts = pack.length ? pack : this.staticRecipe(name + ':' + (p.seed % 97), () =>
                 p.kind === 'chapel' ? WanderMesh.chapel(1.05) : WanderMesh.house(p.seed, p.s));
             for (const q of parts) {
                 recipe.push({
                     key: name + ':' + q.key + ':' + i, hex: q.hex, opts: q.opts,
-                    geo: WanderMesh.translate(q.geo, -p.dx, 0, p.dy),
+                    geo: WanderMesh.translate(WanderMesh.xform(q.geo, { yaw: yaw }), -p.dx, 0, p.dy),
                     at: null
                 });
             }

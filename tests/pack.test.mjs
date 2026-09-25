@@ -33,7 +33,7 @@ test('пак на месте: CC0-источники парсятся как GLB
 test('запечённая геометрия: нормирована, воспроизводима, взгляду не обязательна', () => {
     const page = loadScripts(['js/WanderPackGeo.js']);
     const G = page.get('WANDER_PACK_GEO');
-    for (const kind of ['tree', 'rock', 'bush', 'tent', 'fence', 'campfire', 'log', 'gate', 'tower', 'wall', 'flag', 'catapult']) {
+    for (const kind of ['tree', 'rock', 'bush', 'tent', 'fence', 'campfire', 'log', 'gate', 'tower', 'wall', 'flag', 'catapult', 'peak', 'house', 'chapel']) {
         assert.ok(Array.isArray(G[kind]) && G[kind].length >= 1, kind + ' запечён');
         for (const v of G[kind]) {
             assert.ok(v.parts.length >= 1, kind + ': части есть');

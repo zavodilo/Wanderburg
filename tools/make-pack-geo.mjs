@@ -43,7 +43,19 @@ const SOURCES = {
     // fraction into their own part with hex 0xffffff — the view tints that part to the biome's
     // cap color (snow in Хладоземье, dust in Степи), the body to the biome's rock.
     peak: [{ file: 'rock_tallA.glb', cap: 0.72 }, { file: 'rock_tallB.glb', cap: 0.7 },
-        { file: 'rock_tallC.glb', cap: 0.74 }, { file: 'rock_tallD.glb', cap: 0.7 }]
+        { file: 'rock_tallC.glb', cap: 0.74 }, { file: 'rock_tallD.glb', cap: 0.7 }],
+    // Composites: a house is a story with windows + a pitched roof + a door, a chapel is a round
+    // tower + a conical roof. Pieces are normalized separately, then stacked in unit height; the
+    // `tag` travels into the view so walls, roofs and doors can wear different biome colors.
+    house: [{ compose: [
+        { file: 'tower-square-mid-windows.glb', sy: 0.62, sxz: 1.0, dy: 0, tag: 'wall' },
+        { file: 'tower-square-roof.glb', sy: 0.40, sxz: 1.16, dy: 0.60, tag: 'roof' },
+        { file: 'door.glb', sy: 0.30, sxz: 1.0, dy: 0, dz: 0.46, tag: 'door' }
+    ] }],
+    chapel: [{ compose: [
+        { file: 'tower-hexagon-mid.glb', sy: 0.64, sxz: 0.78, dy: 0, tag: 'wall' },
+        { file: 'tower-hexagon-roof.glb', sy: 0.38, sxz: 0.92, dy: 0.62, tag: 'roof' }
+    ] }]
 };
 const PACK_DIR = path.join(ROOT, 'assets', 'models', 'pack');
 
@@ -126,20 +138,47 @@ function normalize(parts) {
     }
     const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
     const h = Math.max(1e-6, maxY - minY);
-    const out = parts.map(p => ({
-        hex: p.hex,
-        pos: p.pos.map((v, i) => {
-            const k = i % 3;
-            const n = k === 0 ? (v - cx) / h : k === 1 ? (v - minY) / h : (v - cz) / h;
-            return Math.round(n * 1000) / 1000;
-        })
-    })).filter(p => p.pos.length >= 9);
+    const out = parts.map(p => {
+        const q = {
+            hex: p.hex,
+            pos: p.pos.map((v, i) => {
+                const k = i % 3;
+                const n = k === 0 ? (v - cx) / h : k === 1 ? (v - minY) / h : (v - cz) / h;
+                return Math.round(n * 1000) / 1000;
+            })
+        };
+        if (p.tag) q.tag = p.tag;      // composite pieces carry their role (wall/roof/door)
+        return q;
+    }).filter(p => p.pos.length >= 9);
     return { parts: out, height: Math.round(h * 1000) / 1000 };
 }
 
 const data = {};
 for (const [kind, files] of Object.entries(SOURCES)) {
     data[kind] = files.map(spec => {
+        if (spec.compose) {
+            const parts = [];
+            for (const e of spec.compose) {
+                const file = path.join(PACK_DIR, e.file);
+                if (!fs.existsSync(file)) throw new Error('нет исходной модели ' + e.file + ' (pack не распакован?)');
+                const n = normalize(readGlb(file));
+                const sxz = e.sxz == null ? 1 : e.sxz, sy = e.sy == null ? 1 : e.sy;
+                for (const p of n.parts) {
+                    const pos = new Array(p.pos.length);
+                    for (let i = 0; i < p.pos.length; i += 3) {
+                        pos[i] = p.pos[i] * sxz + (e.dx || 0);
+                        pos[i + 1] = p.pos[i + 1] * sy + (e.dy || 0);
+                        pos[i + 2] = p.pos[i + 2] * sxz + (e.dz || 0);
+                    }
+                    parts.push({ hex: e.tint != null ? (e.tint >>> 0) : p.hex, pos: pos, tag: e.tag || null });
+                }
+            }
+            const rn = normalize(parts);
+            return {
+                source: spec.compose.map(e => 'assets/models/pack/' + e.file).join(' + '),
+                compose: true, height: rn.height, verts: rn.parts.reduce((a, p) => a + p.pos.length / 3, 0), parts: rn.parts
+            };
+        }
         const f = typeof spec === 'string' ? spec : spec.file;
         const tint = typeof spec === 'object' ? spec.tint : null;
         const file = path.join(PACK_DIR, f);

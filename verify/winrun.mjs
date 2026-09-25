@@ -29,6 +29,10 @@ WB.Save.load();
 const seed0 = Number(process.argv[2] || 4242);
 const runs = Number(process.argv[3] || 4);
 const legacy = (process.argv[4] || '').split(',').filter(Boolean);
+// A veteran's loadout is a choice, not a cheat: the chassis/captain must be unlocked by the
+// legacy list passed in (ch_*/cap_*), exactly as a player's save would unlock them.
+const chassisId = process.argv[5] || 'dreadnought';
+const captainId = process.argv[6] || 'seraphine';
 
 // --- knowledge -------------------------------------------------------------------------------
 const reachOf = (c) => Math.max(60, ...c.modules.map(m => WB.moduleStat(m.mod, m.level, 'reach') || 0));
@@ -88,8 +92,9 @@ function pickCard(run) {
             if (!m) return 20;
             const power = WB.moduleStat(m.mod, c.level || m.level + 1, 'power') || 0;
             const reach = WB.moduleStat(m.mod, c.level || m.level + 1, 'reach') || 0;
-            const def = (m.mod.id === 'plate' || m.mod.id === 'masonry') ? (hurt ? 45 : 25) + run.regionIndex * 12 : 0;
-            return 40 + power * 0.25 + def + reach * 0.05;
+            const def = (m.mod.id === 'plate' || m.mod.id === 'masonry') ? (hurt ? 45 : 25) : 0;
+            const late = run.regionIndex >= 1 ? power * 0.2 : 0;
+            return 40 + power * 0.25 + def + reach * 0.05 + late;
         }
         if (c.kind === 'new') {
             if (freeSlots <= 0) return 4;
@@ -174,18 +179,21 @@ function drive(run) {
         if (run.__bossRetreat) {
             a = Math.atan2(p.y - boss.y, p.x - boss.x);
             boost = p.steam > 30;
-        } else if (telegraph && d < 560) {
+        } else if (telegraph && d < 620) {
             a = Math.atan2(p.y - boss.y, p.x - boss.x) + 1.35;                          // sidestep the charge
             boost = p.steam > 25;
         } else if (telegraph) {
             a = Math.atan2(p.y - boss.y, p.x - boss.x) + 0.9;
-        } else if (d < myReach * 0.75) {
+        } else if (d < myReach * 0.8) {
             a = Math.atan2(p.y - boss.y, p.x - boss.x) + 1.15;                          // too close: circle out
         } else if (d > myReach * 0.95) {
             a = Math.atan2(boss.y - p.y, boss.x - p.x);                                 // too far: close in
             boost = p.steam > 60;
         } else {
-            a = Math.atan2(boss.y - p.y, boss.x - p.x) + 0.85;                          // the orbit
+            // scaled bosses out-damage us in a long brawl: hug the OUTER edge of our reach and
+            // keep circling, so his short guns whiff while ours do not.
+            const edge = run.regionIndex >= 1 ? 0.95 : 0.85;
+            a = Math.atan2(boss.y - p.y, boss.x - p.x) + (d < myReach * edge ? 0.85 : 0.35);
         }
         run.__why = 'boss d=' + Math.round(d) + (run.__bossRetreat ? ' RETREAT' : telegraph ? ' sidestep' : ' orbit');
         return turnTo(p, dodge(run, a), boost);
@@ -259,7 +267,9 @@ const r0 = (run) => run.region;
 for (let n = 0; n < runs; n++) {
     const seed = seed0 + n * 7919;
     committed = null;
-    const run = new WB.Run({ seed, region: 0, legacy, meta: WB.Save.meta });
+    const chassis = (legacy.includes('ch_' + chassisId) && WB.CHASSIS.find(c => c.id === chassisId)) || WB.CHASSIS[0];
+    const captain = (legacy.includes('cap_' + captainId) && WB.CAPTAINS.find(c => c.id === captainId)) || WB.CAPTAINS[0];
+    const run = new WB.Run({ seed, region: 0, legacy, meta: WB.Save.meta, chassis, captain });
     const t0 = Date.now();
     let frames = 0;
     const log = [];
