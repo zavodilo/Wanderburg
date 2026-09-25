@@ -50,9 +50,9 @@ Kenney Nature/Castle Kit, `assets/models/pack/`, CC0). Колонка «draw cal
 | M-07 | Знамя корпуса | **PACK** Castle Kit | в мерже корпуса | [x] готово |
 | M-08 | Колёса/гусеницы корпуса | процедурные | в мерже корпуса | [ ] CC0 колёса повозки (Castle Kit `bridge-*`/`siege-*` имеют колёса — запечь отдельно) |
 | M-09 | Модули: bombard, culverin, gatling, ballista, spire, mortar, flame, tesla, hive (20 шт.) | процедурные | 1/модуль | [ ] баллистика из `siege-ballista/catapult/trebuchet` Castle Kit; [ ] tesla/spire/hive — поиск CC0 «magic tower»; приёмка: турельная часть крутится, откат виден |
-| M-10 | Рыцари | процедурные | 1/рыцарь | [ ] CC0 лошадь+всадник (Quaternius «Animated Characters», Kenney «animal-pack»); приёмка: клип рыси или процедурный галоп, ≤ 1 draw call |
+| M-10 | Рыцари | процедурные | 1/рыцарь | [ ] CC0 лошадь+всадник. Разведка 2026-09: Kenney Animal Pack Redux — ТОЛЬКО 2D; в OGA-коллекции «CC0 3D Animals» лошади нет (sheep/5-low-poly приходят в OBJ/blend — генератору нужен OBJ-путь). Кандидаты: Quaternius «Ultimate Animated Characters» (CC0, GLB, клипы), Sketchfab CC0 horse (download-гейт). Приёмка: клип рыси или процедурный галоп, ≤ 1 draw call |
 | M-11 | Крестьяне | процедурные | 1/крестьянин (батч?) | [ ] CC0 low-poly человек (Quaternius); приёмка: паника/покорность читаются позой, а не цветом |
-| M-12 | Овцы стад | процедурные | 1/овца | [ ] CC0 овца/скот (Kenney «animal-pack» CC0); приёмка: стадо ≤ 4 draw call батчем |
+| M-12 | Овцы стад | процедурные | 1/овца | [ ] CC0 овца: в OGA «CC0 3D Animals» есть Sheep (CC0), но в OBJ/blend — брать вместе с OBJ-путём генератора (см. M-10). Приёмка: стадо ≤ 4 draw call батчем |
 | M-13 | Повозки | процедурные | 1/повозка | [ ] CC0 телега (Castle Kit `siege-ram` как основа или Quaternius transport) |
 | M-14 | Осы улья | процедурные | пул | [ ] CC0 насекомое; низкий приоритет |
 | M-15 | Обломки (chunks) и всасывание | процедурные | пул | [ ] обломки из битых частей пак-домов (декали вершин) |
