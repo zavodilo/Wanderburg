@@ -701,6 +701,16 @@ function scoreCard(run, c) {
         const reachNew = WB.reachOf(p, m.mod, lvl, st);
         const def = (m.mod.id === 'plate' || m.mod.id === 'masonry') ? (hurt ? 48 : 26) : 0;
         let s = 34 + power * 0.22 + def + run.regionIndex * power * 0.04;
+        // Броневой терминатор T4+: когда полоса (myTop ≥ 960) и двигатель уже собраны,
+        // plate2/masonry — лучшее, что даёт последний пик: броня .28→.35 режет входящий
+        // dps на 10%, а бюджет hp — единственный дефицит подъёма из спавн-мили Венца
+        // (бои 53-100 s с 85-89% hp босса проигрывались именно в последние ~15%).
+        if ((m.mod.id === 'plate' || m.mod.id === 'masonry') && run.player.tier >= 4) {
+            const gunsUp = gunsOf(p, st);
+            const topUp = gunsUp.length ? Math.max(...gunsUp.map(g => g.reach)) : 0;
+            const engine = p.modules.some(x => x.mod.id === 'boiler' || x.mod.id === 'sail');
+            if (topUp >= 960 && engine) s = Math.max(s, 126);
+        }
         if (m.mod.aoe || m.mod.instant || m.mod.cone) s += 10;        // blast/beam never miss a dodger
         s += Math.max(0, reachNew - reachNow) * 0.10;
         if (reachNew >= need + 60 && reachNow < need + 60) s += 30;   // the upgrade crosses the boss line
