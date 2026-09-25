@@ -36,6 +36,10 @@ const page = loadScripts(['js/Constants.js', 'libs/simplex-noise.js', 'js/Conten
 const WB = page.get('WB');
 WB.Save.load();
 
+// UPTIME=1 — лаба разложения myDps: на каждую пушку (секунды в досягаемости / в дуге фикс-маунта,
+// выстрелы, бумажный dps), урон боссу по типам снарядов, смесь стоек боя и доджи босса.
+const UPTIME = !!process.env.UPTIME;
+
 const seed0 = Number(process.argv[2] || 4242);
 const runs = Number(process.argv[3] || 4);
 const legacy = (process.argv[4] || '').split(',').filter(Boolean);
@@ -151,6 +155,46 @@ function escapeDir(run, foes) {
         if (sc > bestSc) { bestSc = sc; bestA = a; }
     }
     return bestA;
+}
+
+/**
+ * ARC-BIAS — фикс-маунты (мортира/тесла, turn:false) не доворачиваются: дуга у них
+ * ±FIRE_CONE_DEG/2 = ±75° от направления маунта (в коде Logic: 150·π/360 — ПОЛНЫЙ раствор
+ * 150°), слепой сектор — 210°. Босс вне дуги — и пушка молчит. Замер (UPTIME-лаба, 257660):
+ * бой почти целиком проходит в escape/chargeRun, мортира молчит, myDps 11 из ~33 бумажных.
+ * Танк идёт КУРСОМ: минимальный доворот δ возвращает босса в дугу; цена — (1−cos δ) радиальной
+ * составляющей отрыва. Поэтому лимит δ зависит от стойки: в жёстком уходе (escape/charge-run)
+ * отрыв дороже урона (0.6 rad), в полосе/отходе — наоборот (1.4 rad ≈ 77°, почти поперёк).
+ * δ выбираем перебором: максимум «фикс-dps в дуге − λ·|δ|».
+ */
+function arcBias(run, p, dir, foe, maxD, lam) {
+    const n = Math.max(1, p.modules.length);
+    const fixed = [];
+    for (const m of p.modules) {
+        if (!m.mod || m.mod.turn || m.mod.behavior !== 'turret') continue;
+        const power = WB.moduleStat(m.mod, m.level, 'power') || 0;
+        if (power <= 0) continue;
+        const rate = Math.max(0.05, WB.moduleStat(m.mod, m.level, 'rate') || 1);
+        fixed.push({ dps: power / rate, mount: WB.SLOT_ANGLE(m.slot, n) });
+    }
+    if (!fixed.length) return dir;
+    const bearing = Math.atan2(foe.y - p.y, foe.x - p.x);
+    const rel = WB.M.angleDelta(dir, bearing);          // босс относительно курса
+    const cone = WB.num('FIRE_CONE_DEG', 150) * Math.PI / 360 - 0.12;   // ±75° минус запас ~7°
+    const lim = maxD == null ? 0.6 : maxD;
+    const score = (dv) => {
+        const rl = rel - dv;                             // доворот курса на dv → босс на rel−dv
+        let s = 0;
+        for (const g of fixed) if (Math.abs(WB.M.angleDelta(g.mount, rl)) <= cone) s += g.dps;
+        return s - Math.abs(dv) * (lam == null ? 12 : lam);
+    };
+    let bestD = 0, bestS = score(0);
+    for (const dv of [0.2, -0.2, 0.4, -0.4, 0.65, -0.65, 0.85, -0.85, 1.05, -1.05, 1.3, -1.3, 1.45, -1.45]) {
+        if (Math.abs(dv) > lim + 1e-9) continue;
+        const s = score(dv);
+        if (s > bestS) { bestS = s; bestD = dv; }
+    }
+    return dir + bestD;
 }
 
 /**
@@ -286,23 +330,14 @@ function bandOf(run, p, foe) {
  */
 function ringSpotFor(run, p, foe, b) {
     const st = p.stats;
-    const armorMul = 1 - WB.M.clamp(st.armor, -0.3, 0.75);
-    const scaleMul = run.scale * 0.9 * armorMul;
     const myGuns = gunsOf(p, st);
-    const foeGuns = gunsOf(foe, foe.estats || WB.enemyStats(foe, run.scale));
-    const rateMul = 1 + 0.18 * ((foe.ai && foe.ai.enrage) || 0);
     const lo = Math.max(b.inst + 55, 520);
     const hi = Math.max(lo + 60, b.dCeil + 30);
     const pts = [];
     for (let cand = lo; cand <= hi; cand += 18) {
         const my = myGuns.reduce((a, g) => a + (g.reach >= cand + 8 ? g.dps : 0), 0);
         if (my <= 0.1) continue;
-        // Коэффициенты калиброваны по двум живым боям Венца: 186379 (dAvg 583: in 44
-        // против модельных 62 при «AoE=1.0») и 170541 (dAvg 630: in 32 против 37). Медленная
-        // AoE-мортира (pspeed 460, aoe 168) частично переживается манёвром (0.8), spire
-        // (aoe 92, pspeed 665) — больше (0.65), instant — весь (1.0), баллистика — 0.55.
-        const inD = foeGuns.reduce((a, g) => a + (g.reach >= cand - 45
-            ? g.dps * scaleMul * rateMul * (g.instant ? 1 : g.aoe >= 150 ? 0.8 : g.aoe >= 60 ? 0.65 : 0.55) : 0), 0);
+        const inD = foeDpsAt(run, foe, cand);
         const net = my - inD;
         pts.push({ cand, my, inD, net, ratio: my / (inD + 2) });
     }
@@ -313,6 +348,23 @@ function ringSpotFor(run, p, foe, b) {
     let best = null;
     for (const q of pts) if (!best || q.net > best.net + 0.5) best = q;
     return { d: best.cand, net: best.net };
+}
+
+/**
+ * Модель входящего dps противника на дистанции d (калибрована по живым боям в ringSpotFor:
+ * 186379 dAvg 583 — 44 факт против 62 при AoE=1.0; 170541 dAvg 630 — 32 против 37).
+ * Медленная AoE-мортира частично переживается манёвром (0.8), spire (aoe 92) — больше (0.65),
+ * instant — весь (1.0), баллистика — 0.55 (часть съедает dodgeShells босса/наш додж).
+ * Scale × 0.9 (босс) × (1 − наша броня).
+ */
+function foeDpsAt(run, foe, d) {
+    const st = run.player.stats;
+    const armorMul = 1 - WB.M.clamp(st.armor, -0.3, 0.75);
+    const scaleMul = run.scale * 0.9 * armorMul;
+    const rateMul = 1 + 0.18 * ((foe.ai && foe.ai.enrage) || 0);
+    const foeGuns = gunsOf(foe, foe.estats || WB.enemyStats(foe, run.scale));
+    return foeGuns.reduce((a, g) => a + (g.reach >= d - 45
+        ? g.dps * scaleMul * rateMul * (g.instant ? 1 : g.aoe >= 150 ? 0.8 : g.aoe >= 60 ? 0.65 : 0.55) : 0), 0);
 }
 
 // A perpendicular step aside from anything that will land on us within `window` seconds.
@@ -353,13 +405,16 @@ function steerToDir(p, a, boost) {
 
 /**
  * The wall-aware escape ray (shared by the deep-escape state and the far-telegraph run).
- * Rim-locked (dC > 0.78R): ride the contour — straight-away is the mountain, through-boss
- * oscillates into ram-stalls, and the tangential keeps 70+ px/s until the geometry opens.
+ * Rim-locked: ride the contour inward — straight-away is the mountain, through-boss oscillates
+ * into ram-stalls, and the inward spiral keeps 70+ px/s until the geometry opens.
+ * Порог спирали — cap боя (wallCapFrac−0.02), а не 0.78R: трейс 257660 r2 скользил по касательной
+ * на dC 628-725 при cap 608 (все лучи в штраф wall'а, отрыв 0, входящие 47-68 dps — смерть за 65 s).
  * Otherwise: sample rays, score landing outside the foe's guns, never past the fight-zone cap.
  */
 function escapeRay(run, p, r, foe, floor, away, wallCapFrac) {
     const dCnow = Math.hypot(p.x - r.cx, p.y - r.cy);
-    if (dCnow > r.regionR * 0.78) {
+    const rimLock = Math.max(0.58, Math.min(0.78, wallCapFrac - 0.02));
+    if (dCnow > r.regionR * rimLock) {
         const radial = Math.atan2(p.y - r.cy, p.x - r.cx);
         const t1 = radial + Math.PI / 2, t2 = radial - Math.PI / 2;
         const tang = Math.abs(WB.M.angleDelta(t1, away)) < Math.abs(WB.M.angleDelta(t2, away)) ? t1 : t2;
@@ -414,6 +469,26 @@ function fightCastle(run, foe, isBoss) {
     }
     const vMine = run.__myV || Math.min(p.stats.speed, p.stats.accel / 2.1);
     const vFoe = run.__foeV || (foe.kind === 'crown' ? 84 : 94);
+    // CANT-RUN: без двигателя (котёл ИЛИ бесконечный пар: steamRegen ≥ BOOST_DRAIN — парус+
+    // Серафина+fast_boiler) босс (hunt 94) приклеен к корпусу (cruise 83) НАВСЕГДА — отрыв
+    // фикция. Тогда бой — обмен: борт к боссу возвращает фикс-маунты (мортира/тесла) ценой
+    // радиальной составляющей, которой и так нет (замер 257660 r1: 109 s из 138 в
+    // escape/chargeRun, dAvg 445, мортира arc 1%, myDps 25 vs inDps 22, bossLeft=130).
+    // Скоростной порог (vMine ≤ vFoe+4) НЕЛЬЗЯ: с котлом крейс 98-101 sits ровно на пороге и
+    // кадры на склонах опрокидывают билд в накрен — сид 210146 (котёл) потерял подъём и умер
+    // в спавн-миле r1 за 21 s. Дискретный признак двигателя совпадает с замерами батчей:
+    // билды с котлом отрывались (dAvg 581), без — прилипали (dAvg 445).
+    const hasEngine = p.modules.some(m => m.mod && m.mod.id === 'boiler') ||
+        p.stats.steamRegen >= WB.num('BOOST_DRAIN', 34);
+    const cantRun = isBoss && !hasEngine;
+    // TILT-OK: наклон курса ради фикс-маунтов допустим, если входящий dps на текущей
+    // дистанции переносим (≤60 — калибр по замерам: r0-210146 brawl inDps 14 → наклон
+    // выигрывает обмен; r1-210146 подъём inDps 123 → наклон = дольше под пятью стволами =
+    // смерть; r1-257660 inDps 16 при наклоне — WON) И мы не глубоко в instant-поле:
+    // stall-наклон на d 346 при inst 505 (замер: myDps 34, inDps 54, смерть в 56 s) срывает
+    // подъём — стен-лок теслы не даёт уйти, а обмен 34/54 всё равно проигран.
+    // cantRun — исключение: отрыва нет в принципе, бой и есть обмен (257660: 29/19 WON).
+    const tiltOk = cantRun || (foeDpsAt(run, foe, d) <= 60 && (b.inst <= 0 || d >= b.inst - 40));
     // A fortress duel is won by whoever patches between the acts: break off earlier than from a
     // boss (the boss must be finished; a fortress can be left for a full-hull second visit).
     const caution = isBoss ? 0.5 + Math.min(0.3, run.regionIndex * 0.1) : 0.6;
@@ -460,6 +535,8 @@ function fightCastle(run, foe, isBoss) {
             const race = WB.M.clamp(Math.max(b.inst + 50, 520), 340, Math.max(b.dCeil, 520));
             const ring = ringSpotFor(run, p, foe, b);
             desired = Math.max(race, ring ? Math.min(ring.d, b.dCeil) : 0);
+            // (STANDOFF-940 переехал ниже геометрии: 940 достижим не в каждой долине —
+            // см. gate-якорь и maxClean ≥ 905 после wallCap.)
         } else if (b.soft >= 400) {
             // spire/ballista floors: stand just OUTSIDE them — the race is free there.
             desired = WB.M.clamp(Math.max(b.inst + 50, b.soft + 50, 520), 340, Math.max(b.dCeil, 520));
@@ -484,6 +561,34 @@ function fightCastle(run, foe, isBoss) {
     // Венцу — 0.78R: замер батчей — тесный коридор 0.70R давил бой до 25 s (босс прижимал
     // корпус к склонам), а 0.78R держал обмен 2:1 на 95 s (89% hp Венца, трейс 170541).
     const wallCap = (desired >= 850 || (isBoss && foe.kind === 'crown')) ? 0.78 : 0.64;
+    // STANDOFF-CLIMB: стойка хочет жить вне его пола (осада 903 / кольцо 874+), а корпус ещё
+    // внутри — лучам ухода разрешено расти по дистанции через всю долину (см. escapeRay).
+    // (STANDOFF-940/waypoint-кросс откатан по батчу arc2: подъём не завершается — зарядный
+    // цикл босса (−91 px каждые 9 s) и стан-лок теслы съедают +20-27 px/s ползка; 6 смертей
+    // r0 вместо 4 базовых. Пила у римa с честной физикой воюется лучше, чем кросс-долина под
+    // пятью стволами. Stalled-детектор оставлен: он теперь только управляет наклоном.)
+    // STALL: дистанция не растёт 5+ секунд — отрыв не работает (пила у римa, босс приклеен).
+    // Тогда наклон ради фикс-маунтов оправдан даже с двигателем: прямое бегство всё равно
+    // не уходит, а бортовой обмен добавляет 13-19 dps мортиры (замер 257660: cantRun-наклон
+    // выиграл обмен 29/19; без него 11/47).
+    if (isBoss) {
+        run.__dHistT = (run.__dHistT || 0) + 1;
+        if (run.__dHistT >= 30) {
+            run.__dHistT = 0;
+            run.__dHist = run.__dHist || [];
+            run.__dHist.push(d);
+            if (run.__dHist.length > 12) run.__dHist.shift();
+        }
+    }
+    const stalled = isBoss && run.__dHist && run.__dHist.length >= 10 &&
+        d - run.__dHist[run.__dHist.length - 10] < 60;
+    // Наклон при сталле: 1.45 у cantRun (отрыва нет, бой=обмен) и только 1.05 с двигателем —
+    // 1.45 (радиал 0.12) затягивал билд с котлом в ближний обмен и делал хуже прямой пилы
+    // (273498: dAvg 472/смерть против базовых 631/108 s победы; обмен +2 myDps за +6 inDps).
+    // 1.05 (радиал 0.5) сохраняет и подъём, и дугу мортиры (dev 126−60=66 ≤ 68).
+    const stallTilt = stalled;
+    const tiltCap = cantRun ? 1.45 : (stallTilt ? 1.05 : 0.6);
+    const tiltLam = (cantRun || stallTilt) ? 8 : 12;
 
     // --- the charge: telegraph locks chargeDir 1.5 s ahead and the lunge covers ~380 px.
     //     CLOSE (≤460): a hard committed sidestep off THE LINE — a per-frame side choice
@@ -519,7 +624,12 @@ function fightCastle(run, foe, isBoss) {
             const drift = Math.cos(pl) * (p.vx || 0) + Math.sin(pl) * (p.vy || 0);
             const sideSign = drift >= 0 ? 1 : -1;
             const perp = cd + Math.PI / 2 * sideSign;
-            const ea = Math.atan2(Math.sin(ray) + Math.sin(perp) * 0.25, Math.cos(ray) + Math.cos(perp) * 0.25);
+            const ea0 = Math.atan2(Math.sin(ray) + Math.sin(perp) * 0.25, Math.cos(ray) + Math.cos(perp) * 0.25);
+            // телеграф (босс стоит 1.5 s) — бесплатное окно урона: вне зоны рывка (≥300) и
+            // при переносимом входящем (tiltOk) доворачиваем курс, чтобы фикс-маунты стреляли
+            // на бегу. Внутри смертельного поля наклон = чистая потеря отрыва (трейс 210146 r1:
+            // наклон под tesla2 на d 300-430 — стен-лок, пар 0, смерть за 21 s).
+            const ea = (d >= 300 && tiltOk) ? arcBias(run, p, ea0, foe, tiltCap, tiltLam) : ea0;
             run.__why = 'boss CHARGE-RUN d=' + Math.round(d);
             const dh = WB.M.angleDelta(p.heading, dodge(run, ea, 0.45));
             // в гаунтлете (<560) тяга жжётся до дна; в стане — обязательна (drag 4.0)
@@ -557,7 +667,13 @@ function fightCastle(run, foe, isBoss) {
     // Boost (153 px/s) is the only real speed difference that exists in this game — but keep a
     // reserve for charge dodges: spend it on separation only above 35 steam.
     const infSteamOrbit = p.stats.steamRegen >= WB.num('BOOST_DRAIN', 34);
-    const boost = (d < desired - 120 && p.steam > (infSteamOrbit ? 8 : 35)) ||
+    // AGGRO-BREAK: стэндофф-пила у floor+90 ползёт на крейсе (95-101 против hunt 94) — босс
+    // вечно в aggro (900) и поджимает, desired 903 недостижим, бой вырождается в escape ниже
+    // escLine (замер 210146 r0: dAvg 637, band 2 s из 192, мортира arc 0%, myDps 14 → 192 s).
+    // Рывок на steam>55 к desired−30 пробивает 900 за 1-2 цикла: босс слезает с aggro и
+    // патрулит под нашей мортирой (1004 > его 813) — бесплатные 30+ dps вместо обмена 14/10.
+    const aggroBreak = isBoss && desired >= 850 && d < desired - 30 && p.steam > 55;
+    const boost = aggroBreak || (d < desired - 120 && p.steam > (infSteamOrbit ? 8 : 35)) ||
         (!b.safe && p.steam > (infSteamOrbit ? 8 : 40) && d < b.dFloor + 80);
 
     // --- INSIDE HIS FLOOR: escaping takes absolute priority (in the SAFE band only — an unsafe
@@ -585,9 +701,14 @@ function fightCastle(run, foe, isBoss) {
         }
         // tight dodge window while escaping: a full 0.9 s window let every distant bolt veto the
         // escape course frame-by-frame and the hull shuddered in place at v≈0 under the mortars.
-        const want = dodge(run, isBoss ? run.__escA : gateGuard(run, run.__escA), 0.45);
+        // Наклон в escape — только при переносимом входящем (tiltOk, см. выше) или когда
+        // отрыва всё равно нет (cantRun): внутри смертельного поля наклон срывает подъём.
+        const escCap = tiltOk ? tiltCap : 0;
+        const escA = isBoss && escCap > 0 ? arcBias(run, p, run.__escA, foe, escCap, tiltLam) : run.__escA;
+        const want = dodge(run, isBoss ? escA : gateGuard(run, escA), 0.45);
         const dh = WB.M.angleDelta(p.heading, want);
-        run.__why = (isBoss ? 'boss' : 'duel') + ' ESCAPE d=' + Math.round(d) + ' fl=' + Math.round(b.dFloor);
+        run.__why = (isBoss ? 'boss' : 'duel') + ' ESCAPE d=' + Math.round(d) + ' fl=' + Math.round(b.dFloor) +
+            ' want=' + Math.round(desired);
         // Steam discipline: the climb out of his guns is worth the whole tank — the standoff
         // refills it for free afterwards (seraphine+fast_boiler: 27.6/s).
         // Steam discipline: boost in bursts, keep a reserve for the climb/dodges — a continuous
@@ -596,11 +717,26 @@ function fightCastle(run, foe, isBoss) {
         // не кончается — подъём жжём непрерывно (каждая секунда под стволами L3 стоит 200-450 hp),
         // а в стане тяга обязательна: без неё drag 4.0 роняет скорость до 44 и босс (84) догоняет.
         const infSteam = p.stats.steamRegen >= WB.num('BOOST_DRAIN', 34);
+        // Паровая дисциплина подъёма. ГЛУБОКО в instant-поле (d < inst−60) скорость — единственная
+        // валюта, но НЕПРЕРЫВНЫЙ жжёлок стачивал бак в 3-4 и держал там ВСЁ время (трейс 210146:
+        // stm=4 на d 204-520): на границе поля (445-565) не оставалось пара ни на финальный
+        // рывок, ни на доджи заряда. Защёлка: жжём до steam ≤ 25, coast-восстановление до 70,
+        // снова жжём — средний цикл ~121 px/s против hunt 94 (+27) и резерв ≥ 25 всегда жив.
+        // Вне поля — прежние импульсы (steam>55 → +130 px за 2.2 s, coast 95-101 держит).
+        // STANDOFF-ПОДЪЁМ (desired ≥ 850): импульсы с steam>45 до выхода за escLine+90.
+        const inInstDeep = isBoss && b.inst > 0 && d < b.inst - 60;
+        if (inInstDeep) {
+            if (run.__instLatch == null || p.stun > 0 || d < 300) run.__instLatch = true;
+            else if (run.__instLatch && p.steam <= 25) run.__instLatch = false;
+            else if (!run.__instLatch && p.steam >= 70) run.__instLatch = true;
+        } else run.__instLatch = null;
         const boostNow = infSteam
             ? (p.steam > 8 && Math.abs(dh) < (p.stun > 0 ? 1.9 : 1.57))
-            : ((p.steam > 55 || d < 340 || p.steam > 20 && d < 520 ||
-                (isBoss && foe.kind === 'crown' && p.steam > 25 && d < 720) ||
-                (p.stun > 0 && p.steam > 8)) && Math.abs(dh) < 1.35);
+            : (inInstDeep
+                ? (run.__instLatch && p.steam > 4 && Math.abs(dh) < (p.stun > 0 ? 1.9 : 1.57))
+                : ((p.steam > 55 || d < 340 || p.steam > 20 && d < 520 ||
+                    (isBoss && foe.kind === 'crown' && p.steam > 25 && d < 720) ||
+                    (p.stun > 0 && p.steam > 8)) && Math.abs(dh) < 1.35));
         return { throttle: 1, steer: WB.M.clamp(dh * 2.4, -1, 1), boost: boostNow };
     }
 
@@ -674,7 +810,11 @@ function fightCastle(run, foe, isBoss) {
     run.__why = (isBoss ? 'boss' : 'duel') + ' d=' + Math.round(d) + ' band[' + Math.round(b.dFloor) +
         ',' + Math.round(b.dCeil) + ']->' + Math.round(desired) + (b.safe ? '' : ' UNSAFE') +
         (run.__retreat ? ' RETREAT' : '');
-    return steerToDir(p, dodge(run, isBoss ? Math.atan2(uy, ux) : gateGuard(run, Math.atan2(uy, ux))), boost);
+    const bandCap = tiltOk ? (cantRun || stallTilt || run.__retreat ? 1.45 : 1.05) : 0;
+    const bandDir = isBoss && bandCap > 0
+        ? arcBias(run, p, Math.atan2(uy, ux), foe, bandCap, tiltLam)
+        : (isBoss ? Math.atan2(uy, ux) : gateGuard(run, Math.atan2(uy, ux)));
+    return steerToDir(p, dodge(run, bandDir), boost);
 }
 
 // --- the draft: 3-4 drafts decide the whole build; score every card against the band ------------
@@ -1133,6 +1273,66 @@ function drive(run) {
     return steerToDir(p, a, best > 320 && p.steam > 55);
 }
 
+/** UPTIME-лаба: завернуть fire/damage одного run, чтобы считать выстрелы и урон боссу по типам. */
+function patchUptime(run) {
+    const origFire = run.fire;
+    run.fire = function (c, m, target, st) {
+        const F = run.__fight;
+        if (F && F.up && c === run.player && m && m.mod) {
+            const G = F.up[m.mod.id + m.level + '#' + m.slot];
+            if (G) G.shots++;
+        }
+        return origFire.call(this, c, m, target, st);
+    };
+    const origDamage = run.damage;
+    run.damage = function (e, amount, o) {
+        const F = run.__fight;
+        if (F && F.dmg && o && o.source === run.player && e && run.boss && e === run.boss) {
+            const k = o.kind || '?';
+            F.dmg[k] = (F.dmg[k] || 0) + amount;
+        }
+        return origDamage.call(this, e, amount, o);
+    };
+}
+
+/** UPTIME-лаба: покадровый срез — каждая пушка (reach/arc), смесь стоек боя. */
+function sampleUptime(run, boss) {
+    const F = run.__fight, p = run.player;
+    if (!F || !F.up) return;
+    const dt = 1 / 60;
+    const n = Math.max(1, p.modules.length);
+    const bearing = Math.atan2(boss.y - p.y, boss.x - p.x);
+    const d = WB.M.dist(p.x, p.y, boss.x, boss.y);
+    const cone = WB.num('FIRE_CONE_DEG', 150) * Math.PI / 360;   // ±75°: Logic делит на 360 (полный раствор 150°)
+    for (const m of p.modules) {
+        if (!m.mod || m.mod.behavior !== 'turret') continue;
+        const power = WB.moduleStat(m.mod, m.level, 'power') || 0;
+        if (power <= 0) continue;
+        const key = m.mod.id + m.level + '#' + m.slot;
+        const rate = Math.max(0.05, WB.moduleStat(m.mod, m.level, 'rate') || 1);
+        const G = F.up[key] || (F.up[key] = { fixed: !m.mod.turn, reachT: 0, arcT: 0, missT: 0, shots: 0, rate, paper: Math.round(power / rate * 10) / 10 });
+        if (d <= WB.reachOf(p, m.mod, m.level, p.stats)) {
+            G.reachT += dt;
+            if (m.mod.turn) G.arcT += dt;
+            else {
+                const mount = p.heading + WB.SLOT_ANGLE(m.slot, n);
+                if (Math.abs(WB.M.angleDelta(mount, bearing)) <= cone) G.arcT += dt;
+                // игровое решение кадра: aim/CD из самого состояния модуля (после update) —
+                // если «готов в дуге» много, а выстрелов мало, гейт живёт не в дуге и не в CD.
+                const devGame = Math.abs(WB.M.angleDelta(mount, WB.M.angleDelta(0, m.aim || 0)));
+                if (devGame <= cone && (m.cd || 0) <= 0.001) G.missT += dt;
+                // ствол смотрит НЕ на босса (рыцарь/крепость ближе) — aim расходится с пеленгом
+                if (Math.abs(WB.M.angleDelta(WB.M.angleDelta(0, m.aim || 0), bearing)) > 0.25) G.offT = (G.offT || 0) + dt;
+            }
+        }
+    }
+    const why = run.__why || '';
+    const w = why.includes('CHARGE-RUN') ? 'chargeRun' : why.includes('CHARGE-DODGE') ? 'chargeDodge'
+        : why.includes('ESCAPE') ? 'escape' : why.includes('RETREAT') ? 'retreat'
+            : why.startsWith('boss') ? 'band' : (why.split(' ')[0] || '?');
+    F.why[w] = (F.why[w] || 0) + dt;
+}
+
 /** Close out the current fight telemetry (called when the boss dies AND when the run ends). */
 function flushFight(run, fightStats) {
     const F = run.__fight;
@@ -1143,7 +1343,8 @@ function flushFight(run, fightStats) {
         myDps: Math.round((F.b0 - (F.log.alive ? F.log.hp : 0)) / Math.max(1, F.t)),
         inDps: Math.round((F.hp0 - run.player.hp) / Math.max(1, F.t)),
         bossHp: Math.round(F.log.alive ? F.log.hp : 0), won: !F.log.alive,
-        guns: F.log.modules.filter(m => m.mod.power).map(m => m.mod.id).join('+')
+        guns: F.log.modules.filter(m => m.mod.power).map(m => m.mod.id).join('+'),
+        up: F.up || null, dmg: F.dmg || null, dodges: F.dodges || 0, why: F.why || null
     });
     run.__fight = null;
 }
@@ -1158,6 +1359,7 @@ for (let n = 0; n < runs; n++) {
     const chassis = (legacy.includes('ch_' + chassisId) && WB.CHASSIS.find(c => c.id === chassisId)) || WB.CHASSIS[0];
     const captain = (legacy.includes('cap_' + captainId) && WB.CAPTAINS.find(c => c.id === captainId)) || WB.CAPTAINS[0];
     const run = new WB.Run({ seed, region: 0, legacy, meta: WB.Save.meta, chassis, captain });
+    if (UPTIME) patchUptime(run);
     const t0 = Date.now();
     let frames = 0;
     const fightStats = [];
@@ -1181,15 +1383,21 @@ for (let n = 0; n < runs; n++) {
         const bossNow = run.boss && run.boss.alive ? run.boss : null;
         if (bossNow) {
             const F = run.__fight || (run.__fight = { t: 0, dSum: 0, n: 0, hp0: 0, b0: 0, rimT: 0, lowVT: 0, log: null });
-            if (!F.log) { F.log = bossNow; F.t = 0; F.dSum = 0; F.n = 0; F.hp0 = run.player.hp; F.b0 = bossNow.hp; }
+            if (!F.log) {
+                F.log = bossNow; F.t = 0; F.dSum = 0; F.n = 0; F.hp0 = run.player.hp; F.b0 = bossNow.hp;
+                run.__dHist = null; run.__dHistT = 0;   // новая пила d — с чистого листа
+                if (UPTIME) { F.up = {}; F.dmg = {}; F.why = {}; F.dodges = 0; }
+            }
             F.t += 1 / 60; F.n++;
             F.dSum += WB.M.dist(run.player.x, run.player.y, bossNow.x, bossNow.y);
             if (Math.hypot(run.player.x - run.region.cx, run.player.y - run.region.cy) > run.region.regionR * 0.74) F.rimT += 1 / 60;
             if (Math.hypot(run.player.vx, run.player.vy) < 50) F.lowVT += 1 / 60;
+            if (UPTIME) sampleUptime(run, bossNow);
         } else if (run.__fight && run.__fight.log) {
             flushFight(run, fightStats);
         }
         for (const ev of run.events) {
+            if (UPTIME && ev.type === 'dodge' && run.__fight && run.boss && ev.id === run.boss.id) run.__fight.dodges++;
             if (['fortressDown', 'gateOpen', 'bossSpawn', 'bossDown', 'playerDown', 'regionClear'].includes(ev.type)) {
                 log.push(Math.round(run.time) + 's ' + ev.type + (ev.left != null ? ':' + ev.left : ''));
                 if (ev.type === 'bossSpawn' && run.boss) {
@@ -1233,6 +1441,15 @@ for (let n = 0; n < runs; n++) {
     for (const f of fightStats) {
         console.log('   fight r' + f.region + (f.won ? ' WON ' : ' LOST') + ' in ' + f.t + 's [' + f.guns + '] dAvg=' + f.dAvg +
             ' rim=' + f.rim + 's lowV=' + f.lowV + 's myDps=' + f.myDps + ' inDps=' + f.inDps + ' bossLeft=' + f.bossHp);
+        if (UPTIME && f.up) {
+            console.log('      guns: ' + Object.entries(f.up).map(([k, G]) =>
+                k + (G.fixed ? '/FIX' : '/tur') + ' reach=' + Math.round(G.reachT) + 's arc=' + Math.round(G.arcT) + 's(' +
+                (G.reachT > 0 ? Math.round(G.arcT / G.reachT * 100) + '%' : '–') + ')' +
+                (G.fixed ? ' miss=' + Math.round(G.missT || 0) + 's off=' + Math.round(G.offT || 0) + 's' : '') +
+                ' shots=' + G.shots + '/' + Math.round(G.arcT / G.rate) + ' бумага=' + G.paper + 'dps').join(' | '));
+            console.log('      dmg→boss: ' + Object.entries(f.dmg || {}).map(([k, v]) => k + '=' + Math.round(v)).join(' ') +
+                ' dodges=' + f.dodges + ' | стойки: ' + Object.entries(f.why || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + '=' + Math.round(v) + 's').join(' '));
+        }
     }
     if (!run.won && deathCauses.length) {
         const tally = {};

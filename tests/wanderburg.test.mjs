@@ -189,6 +189,52 @@ test('таран: столкновение корпусов наносит ур�
     assert.ok(p.hp <= hpP, 'игрок тоже получил отдачу или ответный огонь');
 });
 
+test('фикс-маунт: дуга стрельбы относительно корпуса, а не абсолютного курса', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 77, region: 0, legacy: [] });
+    const p = run.player;
+    // корпус из одной мортиры: slot 0, n=1 → маунт на SLOT_ANGLE(0,1) = −90° (левый борт);
+    // мортира — turn:false, единственная пушка игры с фиксированной дугой помимо теслы
+    p.modules.length = 0;
+    p.modules.push({ mod: WB.moduleById('mortar'), level: 1, slot: 0, aim: 0, cd: 0, mount: null });
+    WB.recompute(p);
+    const f = run.region.castles.find(c => c.kind === 'fortress' && c.alive);
+    f.modules.length = 0;                                   // мишень не отвечает
+    for (const c of run.region.castles) {                   // прочих охотников — подальше
+        if (c !== f && c.faction !== p.faction) { c.x = p.x + 9000; c.y = p.y + 9000; }
+    }
+    const mount = WB.SLOT_ANGLE(0, 1);                      // −π/2
+    const trial = (heading, rel) => {
+        run.projectiles.length = 0;
+        p.heading = heading; p.vx = 0; p.vy = 0;
+        p.x = run.region.cx; p.y = run.region.cy;
+        const b = heading + rel;                            // враг на корпус-относительном пеленге rel
+        f.x = p.x + Math.cos(b) * 400; f.y = p.y + Math.sin(b) * 400;
+        f.vx = 0; f.vy = 0;
+        if (f.ai) { f.ai.state = 'roam'; f.ai.think = 5; }
+        p.modules[0].cd = 0;
+        for (let i = 0; i < 10; i++) run.update(1 / 60, { throttle: 0, steer: 0 });
+        return run.projectiles.filter(pr => pr.owner === p && pr.shot === 'shell').length;
+    };
+    const headings = [0, Math.PI / 2, Math.PI, -Math.PI / 2, 2.3];
+    // В дуге (dev = |mount − rel| = 0): выстрел при ЛЮБОМ абсолютном курсе.
+    // Старый баг считал dev = angleDelta(heading + mountAngle, aim) с уже зашитым в mountAngle
+    // курсом (двойной heading): dev = rel − mount − heading — конус «уезжал» в мировых
+    // координатах, и на heading=π мортира молчала по цели в собственной дуге.
+    for (const h of headings) {
+        assert.ok(trial(h, mount) > 0, `мортира h=${h.toFixed(2)}: нет выстрела по цели в дуге`);
+    }
+    // Граница дуги: FIRE_CONE_DEG=150 — ПОЛНЫЙ раствор (в Logic: 150·π/360), т.е. ±75° от маунта.
+    assert.ok(trial(0.7, mount + 70 * Math.PI / 180) > 0, 'внутри ±75° — выстрел');
+    assert.equal(trial(0.7, mount + 100 * Math.PI / 180), 0, 'вне ±75° — молчание');
+    // Слепой конус (dev = 180°): молчание при любом курсе.
+    // Старый баг «разрешал» выстрел на h=±π/2 и h=π (dev_bug = π − h).
+    for (const h of headings) {
+        assert.equal(trial(h, mount + Math.PI), 0, `мортира h=${h.toFixed(2)}: выстрел в слепом конусе`);
+    }
+});
+
 test('врата открываются по крепостям, варден.spawn и смерть вардена чистят регион', () => {
     const { get } = game();
     const WB = get('WB');

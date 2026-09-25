@@ -1032,7 +1032,13 @@ class WBRun {
             if (!target || m.cd > 0) continue;
             if (!mod.turn) {
                 // A fixed mount only fires inside its own arc (the mortar cannot shoot behind itself).
-                const dev = WB.M.angleDelta(c.heading + mountAngle, m.aim);
+                // The arc is HULL-RELATIVE: mountAngle already carries c.heading — adding the
+                // heading again spun the blind cone in WORLD space at twice the hull rate, so a
+                // mortar went silent on ~half of its legal arc depending on which way the hull
+                // happened to face (measured: 19 shots instead of 39 in a 124 s warden fight,
+                // verify/winrun.mjs UPTIME lab, seed 257660) — and the renderer (WanderMesh reads
+                // the same SLOT_ANGLE table once) drew the mount pointing elsewhere.
+                const dev = WB.M.angleDelta(mountAngle, m.aim);
                 if (Math.abs(dev) > WB.num('FIRE_CONE_DEG', 150) * Math.PI / 360) continue;
             }
             m.cd = WB.moduleStat(mod, m.level, 'rate');
