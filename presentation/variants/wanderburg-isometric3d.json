@@ -48,7 +48,6 @@
         "postprocessing": "none"
     },
     "performance": {
-        "maxDrawCalls": 420,
         "maxParticles": 240,
         "maxShadowLights": 0
     }

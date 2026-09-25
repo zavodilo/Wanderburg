@@ -151,7 +151,10 @@ function drive(run) {
     const boss = run.boss && run.boss.alive ? run.boss : null;
     // Enemy hull and damage scale by 1.38 per region: what was brave in the Marches is suicide in
     // the Crown. The caution line (retreat below, re-engage above) climbs with the region index.
-    const caution = 0.5 + Math.min(0.25, run.regionIndex * 0.08);
+    const caution = 0.5 + Math.min(0.3, run.regionIndex * 0.1);
+    // A fresh valley is for eating, not duelling: region 2+ fortresses hit ~1.9x, and walking in
+    // at 80% hull straight into a patrol is how the region-2 entries died. 25 s of farming first.
+    const fresh = (run.time - (run.__regionAt || 0)) < 25 && run.regionIndex >= 1;
 
     // 1) the hull is failing: break off and patch
     const hurt = p.hp < p.maxHp * (threat.near || boss ? caution : 0.26);
@@ -171,10 +174,13 @@ function drive(run) {
     if (boss) {
         const d = WB.M.dist(p.x, p.y, boss.x, boss.y);
         const telegraph = boss.ai && boss.ai.telegraph > 0;
+        // The Iron Crown summons escorts and enrages: keep the outer edge of our reach and
+        // sidestep earlier — his escort volleys punish a tight orbit more than his own guns do.
+        const crown = boss.kind === 'crown';
         const hpFrac = p.hp / p.maxHp;
         if (run.__bossRetreat == null) run.__bossRetreat = false;
         if (hpFrac < caution) run.__bossRetreat = true;
-        else if (hpFrac > caution + 0.3) run.__bossRetreat = false;
+        else if (hpFrac > Math.min(0.95, caution + 0.3)) run.__bossRetreat = false;
         let a, boost = false;
         if (run.__bossRetreat) {
             a = Math.atan2(p.y - boss.y, p.x - boss.x);
@@ -192,7 +198,7 @@ function drive(run) {
         } else {
             // scaled bosses out-damage us in a long brawl: hug the OUTER edge of our reach and
             // keep circling, so his short guns whiff while ours do not.
-            const edge = run.regionIndex >= 1 ? 0.95 : 0.85;
+            const edge = crown ? 0.95 : (run.regionIndex >= 1 ? 0.95 : 0.85);
             a = Math.atan2(boss.y - p.y, boss.x - p.x) + (d < myReach * edge ? 0.85 : 0.35);
         }
         run.__why = 'boss d=' + Math.round(d) + (run.__bossRetreat ? ' RETREAT' : telegraph ? ' sidestep' : ' orbit');
@@ -201,7 +207,7 @@ function drive(run) {
 
     // 3) farm until we are a hull, not a cart: tier 3 and four guns before picking duels
     const armed = p.tier >= 3 && p.modules.length >= 4;
-    const hunter = threat.near && threat.dist < (armed ? 760 : 620);
+    const hunter = threat.near && threat.dist < (fresh ? 380 : (armed ? 760 : 620));
     // With the gate open and no warden up yet, the OBJECTIVE beats duels: a knight camping the
     // courtyard used to hold the driver in a forever-duel while the gate waited ten metres away
     // (trace: gateOpen at 52s, bossSpawn never). Ride through, take the boss.

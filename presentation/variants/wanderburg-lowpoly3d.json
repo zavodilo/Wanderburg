@@ -3,7 +3,7 @@
     "name": "Wanderburg — Low-poly 3D (shipped)",
     "profile": "lowpoly3d",
     "enabled": true,
-    "description": "THE presentation the game ships: a perspective camera over the rolling fortress, hand-built low-poly meshes, toon bands with environment ink edges, no silhouette outline (on convex hand-built meshes the inverted hull wins the depth tie and paints the object black), no shadow map — every hull drops its own blob shadow. Sun, sky and fog come from the biome (js/Content.js), so the variant pins only the shading model. Camera pose and the zoom range mirror Constants.js (CAMERA_*); the zoom itself stays authored by the game (CAMERA_ZOOM / CAMERA_ZOOM_MOBILE). Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
+    "description": "THE presentation the game ships: a perspective camera over the rolling fortress, hand-built low-poly meshes, toon bands with environment ink edges, no silhouette outline (on convex hand-built meshes the inverted hull wins the depth tie and paints the object black), no shadow map — every hull drops its own blob shadow. Sun, sky and fog come from the biome (js/Content.js), so the variant pins only the shading model. Camera pose and the zoom range mirror Constants.js (CAMERA_*); the zoom itself stays authored by the game (CAMERA_ZOOM / CAMERA_ZOOM_MOBILE). Draw load, measured on a full valley (verify/deploy.mjs, C-6): ~900 unique enabled mesh instances and 4-8k GL draws per frame (scene-dependent), because WORLD3D_TOON_INK=2 renders an ink-edge pass over the world; maxDrawCalls therefore states the profile canon (900 instances), not a wish — a mobile build halves the draw count with WORLD3D_TOON_INK=0 or 1. Every entity is SELF-PRESENTED (GAME_SPEC.entities declare representation \"none\"): js/WanderView.js + js/WanderMesh.js build the meshes on the kit engine layer, so the pipeline binds no second copy of anything.",
     "createdBy": "author",
     "createdFrom": null,
     "camera": {
@@ -48,7 +48,7 @@
         "postprocessing": "none"
     },
     "performance": {
-        "maxDrawCalls": 420,
+        "maxDrawCalls": 900,
         "maxParticles": 240,
         "maxShadowLights": 0
     }

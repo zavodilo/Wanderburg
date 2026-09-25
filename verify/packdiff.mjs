@@ -93,11 +93,20 @@ async function shoot(mode) {
     const q = `/index.html?run=1&seed=${SEED}` + (mode === 'nopack' ? '&nopack=1' : '');
     await page.goto(BASE + q, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForFunction(() => window.app && window.app.game && window.app.game.run && window.app.game.state === 'play', { timeout: 60000 });
-    const out = await page.evaluate(async () => {
+    const out = await page.evaluate(async (SEED) => {
         const g = window.app.game;
         // park the rAF loop and drive both halves identically: same seed, same inputs, same frames
         if (!g.__park) { g.__park = true; const o = g.update.bind(g); g.update = (dt) => (window.__parked ? undefined : o(dt)); }
         window.__parked = true;
+        // D-3: before the park, the live loop has run a mode-dependent number of frames (the pack
+        // mode renders heavier), so the two halves started from slightly different sim states
+        // (the old "1 px divergence"). Reset the run AFTER parking: both halves now begin from
+        // frame zero of the same seed — and any future divergence is a real view->sim leak.
+        g.run = new WB.Run({ seed: SEED, region: 0, chassis: WB.CHASSIS[0], captain: WB.CAPTAINS[0], legacy: [], meta: WB.Save.meta });
+        g.view.setRun(g.run);
+        g.camera.follow(g.run.player);
+        g.state = 'play';
+        g.run.grace = 1e9;
         const app = window.app;
         // Stand the hull next to the nearest hamlet and look at it: this is a VISUAL A/B, not a
         // driving test — a teleport keeps both halves at the same lens, 240 px from the tents,
@@ -126,7 +135,7 @@ async function shoot(mode) {
         window.__abd = tv ? Math.round(Math.hypot(tv.x - p0.x, tv.y - p0.y)) : -1;
         const cap = Debug3D.capture();
         return { dataUrl: cap.dataUrl, px: Math.round(g.run.player.x), py: Math.round(g.run.player.y), abd: window.__abd };
-    });
+    }, SEED);
     const file = path.join(ROOT, 'verify', 'packdiff-' + mode + '.png');
     const png = Buffer.from(out.dataUrl.split(',')[1], 'base64');
     fs.writeFileSync(file, png);
@@ -157,7 +166,7 @@ if (errs.length) { console.log('  console errors:'); for (const e of errs.slice(
 else console.log('  console: clean in both modes');
 await browser.close();
 if (srv) srv.kill();
-const sameRun = Math.abs(a.px - b.px) <= 2 && Math.abs(a.py - b.py) <= 2;
+const sameRun = a.px === b.px && a.py === b.py;   // reset after park: the halves must match EXACTLY
 const ok = ratio > 0.04 && sameRun && !errs.length;   // >=4% of the frame visibly differs
 console.log(ok ? '\n  The pack visibly changes ' + (ratio * 100).toFixed(1) + '% of the frame, and the simulation under it is identical.\n'
     : '\n  PACKDIFF FAIL: changed ' + (ratio * 100).toFixed(1) + '% of cells, mean Δ ' + mean.toFixed(2) + (!sameRun ? ' (simulation diverged!)' : '') + '\n');
