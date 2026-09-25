@@ -38,7 +38,12 @@ const SOURCES = {
     tower: [{ file: 'tower-square.glb', tint: 0x8b9198 }],
     wall: [{ file: 'wall.glb', tint: 0x9aa0a6 }],
     flag: [{ file: 'flag-banner-long.glb', tint: 0xffffff }],
-    catapult: [{ file: 'siege-catapult.glb', tint: 0x7d5636 }]
+    catapult: [{ file: 'siege-catapult.glb', tint: 0x7d5636 }],
+    // The mountain ring: tall crags with a SNOW CAP. cap splits the triangles above a height
+    // fraction into their own part with hex 0xffffff — the view tints that part to the biome's
+    // cap color (snow in Хладоземье, dust in Степи), the body to the biome's rock.
+    peak: [{ file: 'rock_tallA.glb', cap: 0.72 }, { file: 'rock_tallB.glb', cap: 0.7 },
+        { file: 'rock_tallC.glb', cap: 0.74 }, { file: 'rock_tallD.glb', cap: 0.7 }]
 };
 const PACK_DIR = path.join(ROOT, 'assets', 'models', 'pack');
 
@@ -141,7 +146,22 @@ for (const [kind, files] of Object.entries(SOURCES)) {
         if (!fs.existsSync(file)) throw new Error('нет исходной модели ' + path.relative(ROOT, file) + ' (pack не распакован?)');
         const n = normalize(readGlb(file));
         if (tint != null) for (const p of n.parts) p.hex = tint >>> 0;
-        return { source: 'assets/models/pack/' + f, tint: tint != null ? tint >>> 0 : null, height: n.height, verts: n.parts.reduce((a, p) => a + p.pos.length / 3, 0), parts: n.parts };
+        let parts = n.parts;
+        if (typeof spec === 'object' && spec.cap) {
+            const cut = Number(spec.cap);
+            const split = [];
+            for (const p of parts) {
+                const body = [], cap = [];
+                for (let i = 0; i < p.pos.length; i += 9) {
+                    const ys = [p.pos[i + 1], p.pos[i + 4], p.pos[i + 7]];
+                    (ys[0] >= cut && ys[1] >= cut && ys[2] >= cut ? cap : body).push(...p.pos.slice(i, i + 9));
+                }
+                if (body.length) split.push({ hex: p.hex, pos: body });
+                if (cap.length) split.push({ hex: 0xffffff, pos: cap });
+            }
+            parts = split;
+        }
+        return { source: 'assets/models/pack/' + f, tint: tint != null ? tint >>> 0 : null, cap: (typeof spec === 'object' && spec.cap) || null, height: n.height, verts: parts.reduce((a, p) => a + p.pos.length / 3, 0), parts: parts };
     });
 }
 

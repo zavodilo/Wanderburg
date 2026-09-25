@@ -314,8 +314,11 @@ class WanderView {
             // its stone/wood reading).
             let target = tint, k = t == null ? 0.6 : t;
             if (pal) {
-                const g = (part.hex >> 8) & 255, r = (part.hex >> 16) & 255;
-                target = g > r ? pal.green : pal.brown;
+                if (part.hex === 0xffffff && pal.cap != null) target = pal.cap;   // a baked snow cap
+                else {
+                    const g = (part.hex >> 8) & 255, r = (part.hex >> 16) & 255;
+                    target = g > r ? pal.green : pal.brown;
+                }
             }
             out.push({
                 key: kind + pi,
@@ -345,7 +348,8 @@ class WanderView {
             return pack.length ? pack : WanderMesh.bush(s.seed, bshade, scale);
         }
         const cap = biome.ground === 2 ? 0xf4f8fb : biome.ground === 1 ? 0xe8dcc6 : 0xeaf0f4;
-        return WanderMesh.peak(s.seed, biome.rockColor, scale, cap);
+        const pack = this.packParts('peak', s.seed, 250 * scale, null, 0.95, { green: biome.rockColor, brown: biome.rockColor, cap: cap });
+        return pack.length ? pack : WanderMesh.peak(s.seed, biome.rockColor, scale, cap);
     }
 
     sceneryColor(s, biome) {

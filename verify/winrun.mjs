@@ -146,7 +146,7 @@ function drive(run) {
     const boss = run.boss && run.boss.alive ? run.boss : null;
     // Enemy hull and damage scale by 1.38 per region: what was brave in the Marches is suicide in
     // the Crown. The caution line (retreat below, re-engage above) climbs with the region index.
-    const caution = 0.45 + Math.min(0.3, run.regionIndex * 0.09);
+    const caution = 0.5 + Math.min(0.25, run.regionIndex * 0.08);
 
     // 1) the hull is failing: break off and patch
     const hurt = p.hp < p.maxHp * (threat.near || boss ? caution : 0.26);
@@ -204,10 +204,10 @@ function drive(run) {
         const foeReach = reachOf(foe);
         let a;
         if (!armed && dFoe < 460) a = Math.atan2(p.y - foe.y, p.x - foe.x);       // too weak: run
-        else if (dFoe < myReach * 0.7 || dFoe < foeReach * 0.6 && myDps < dpsOf(foe)) a = Math.atan2(p.y - foe.y, p.x - foe.x) + 1.2;
+        else if (dFoe < myReach * 0.7 || (dFoe < foeReach * 0.6 && myDps < dpsOf(foe))) a = Math.atan2(p.y - foe.y, p.x - foe.x) + 1.2;
         else if (dFoe > myReach * 0.95) a = Math.atan2(foe.y - p.y, foe.x - p.x);
         else a = Math.atan2(foe.y - p.y, foe.x - p.x) + 0.8;                      // orbit at our reach
-        run.__why = (armed ? 'duel' : 'flee') + ' d=' + Math.round(threat.dist);
+        run.__why = (armed ? 'duel' : 'flee') + ' d=' + Math.round(dFoe);
         return turnTo(p, dodge(run, a), dFoe > 500 && p.steam > 45);
     }
 
@@ -265,9 +265,17 @@ for (let n = 0; n < runs; n++) {
     const log = [];
     const tierAt = [];
     let lastTier = run.player.tier;
+    let lastHp = run.player.hp, deathCauses = [];
     while (!run.over && frames < 60 * 60 * 22) {
         run.update(1 / 60, drive(run));
         frames++;
+        // what actually kills us: the events of the frames where the hull lost hp
+        if (run.player.hp < lastHp - 0.01) {
+            const src = run.events.filter(e => e.source || e.kind).map(e => (e.kind || e.source || e.type));
+            deathCauses.push(src.join('+') || 'unknown');
+            if (deathCauses.length > 40) deathCauses.shift();
+        }
+        lastHp = run.player.hp;
         if (run.player.tier !== lastTier) { tierAt.push('T' + run.player.tier + '@' + Math.round(run.time) + 's'); lastTier = run.player.tier; }
         for (const ev of run.events) {
             if (['fortressDown', 'gateOpen', 'bossSpawn', 'bossDown', 'playerDown', 'regionClear'].includes(ev.type)) {
@@ -275,7 +283,7 @@ for (let n = 0; n < runs; n++) {
             }
         }
         if (run.draftPending) run.takeDraft(pickCard(run));
-        if (run.regionCleared) { log.push(Math.round(run.time) + 's ->R' + (run.regionIndex + 1)); run.nextRegion(); committed = null; }
+        if (run.regionCleared) { log.push(Math.round(run.time) + 's ->R' + (run.regionIndex + 1)); run.nextRegion(); committed = null; run.__regionAt = run.time; }
         if (process.env.TRACE && frames % 1200 === 0) {
             const p = run.player;
             console.log('   t=' + Math.round(run.time) + 's ' + (run.__why || '-') +
@@ -294,6 +302,11 @@ for (let n = 0; n < runs; n++) {
     console.log('seed ' + seed + ' | ' + (run.won ? 'ПОБЕДА' : 'поражение') + ' | регион ' + run.regionIndex +
         ' | tier ' + s.tier + ' | kills ' + s.kills + ' | ' + Math.round(run.time) + 's sim / ' + (Date.now() - t0) + 'ms wall');
     console.log('   ' + tierAt.join(' ') + ' | ' + log.join(' '));
+    if (!run.won && deathCauses.length) {
+        const tally = {};
+        for (const c of deathCauses) tally[c] = (tally[c] || 0) + 1;
+        console.log('   урон: ' + Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => k + '×' + v).join(', '));
+    }
 }
 console.log('\n  итог: ' + wins + ' побед из ' + runs);
 for (const [seed, won, region, tier, kills, t, ms, mods] of table) {
