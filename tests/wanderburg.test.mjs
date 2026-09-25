@@ -356,3 +356,139 @@ test('корпуса не трусит: наклон и крен демпфир�
     }
     assert.ok(worstTurn <= 2.6 / 60 + 1e-6, 'заряд доворачивает: ' + (worstTurn * 57.3).toFixed(2) + '°/кадр');
 });
+
+// Контракт контента: «Магистр Векс — Арканные модули: +30% урона, +15% дальности». До фикса
+// playerStats содержал `(cap.arcaneDmg ? 0 : 0)` — капитан за 150 лома не давал НИЧЕГО на урон,
+// а arcaneRange утекал на ВСЕ модули корпуса, а не только на арканные. Теперь оба бонуса
+// живут там, где обещаны: урон — на выстреле арканного модуля (fire), дальность — в WB.reachOf.
+test('Векс: аркана +30% урона и +15% дальности, неарканное не получает ничего', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const vex = WB.CAPTAINS.find(c => c.id === 'vex');
+    const plain = WB.CAPTAINS.find(c => c.id === 'cogsworth');
+    assert.ok(vex && vex.mods.arcaneDmg === 0.3 && vex.mods.arcaneRange === 0.15);
+
+    const build = (captain) => {
+        const run = new WB.Run({ seed: 4242, region: 0, captain });
+        const p = run.player;
+        p.modules.length = 0;
+        p.modules.push({ mod: WB.moduleById('tesla'), level: 1, slot: 0, aim: 0, cd: 0, mount: null });
+        WB.recompute(p);
+        return { run, p };
+    };
+
+    // Дальность: арканный модуль растёт, обычный — нет; hull-wide range от капитана не меняется.
+    const a = build(vex), b = build(plain);
+    const spire = WB.moduleById('spire'), bombard = WB.moduleById('bombard');
+    assert.equal(a.p.stats.range, b.p.stats.range, 'arcaneRange не должен течь в hull-wide range');
+    const spireVex = WB.reachOf(a.p, spire, 1, a.p.stats);
+    const spirePlain = WB.reachOf(b.p, spire, 1, b.p.stats);
+    assert.ok(Math.abs(spireVex / spirePlain - 1.15) < 1e-9, 'spire: ' + spireVex + ' / ' + spirePlain + ' ≠ 1.15');
+    assert.equal(WB.reachOf(a.p, bombard, 1, a.p.stats), WB.reachOf(b.p, bombard, 1, b.p.stats),
+        'бомбарда Векса не трогает');
+
+    // Урон: мгновенная тесла бьёт манекен без брони; оба забега на одном сиде — крит одинаков.
+    const hit = ({ run, p }) => {
+        const dummy = run.region.makeCastle(300, 300, { tier: 1, hp: 5000, mods: [], faction: 'enemy' });
+        dummy.estats = WB.enemyStats(dummy, run.scale);
+        const before = dummy.hp;
+        run.fire(p, p.modules[0], dummy, p.stats);
+        return before - dummy.hp;
+    };
+    const dmgVex = hit(a), dmgPlain = hit(b);
+    assert.ok(dmgPlain > 0, 'тесла вообще бьёт');
+    assert.ok(Math.abs(dmgVex / dmgPlain - 1.3) < 1e-9, 'урон Векса ' + dmgVex + ' / ' + dmgPlain + ' ≠ 1.3');
+});
+
+// Гравитация вдоль склона у игрока вычиталась скаляром из ОБЕИХ компонент ускорения — это толчок
+// в мировой угол (−1,−1), а не вдоль склона (у ИИ driveCastle проецирует на курс, как и должно).
+// На горном кольце в квадранте (+x,+y) корпус, направленный вниз по склону, прижимало к стене
+// вместо спуска в долину (winrun-трейс: v≈0 при dC=863 больше 1000 с «контурной» езды).
+test('гравитация склона вдоль курса: корпус сползает в долину во всех квадрантах', () => {
+    const { get } = game();
+    const WB = get('WB');
+    for (let q = 0; q < 4; q++) {
+        const ang = Math.PI / 4 + q * Math.PI / 2;         // 45°, 135°, 225°, 315°
+        const run = new WB.Run({ seed: 4242, region: 0 });
+        const p = run.player;
+        const r = run.region;
+        const d0 = r.regionR * 0.9;                        // на склоне горного кольца
+        const x0 = r.cx + Math.cos(ang) * d0, y0 = r.cy + Math.sin(ang) * d0;
+        // Чистая физика: убираем всё, что может толкнуть корпус (отделение деревень — не баг:
+        // structures push the hull out of their footprint, и на тесте гравитации им не место).
+        for (const e of r.entities.slice()) {
+            if (e !== p && e.type !== 'gate' && WB.M.dist(e.x, e.y, x0, y0) < 320) r.remove(e);
+        }
+        p.x = x0; p.y = y0;
+        p.heading = Math.atan2(r.cy - p.y, r.cx - p.x);    // строго на центр = вниз по склону
+        p.vx = 0; p.vy = 0; p.stun = 0;
+        const dC0 = Math.hypot(p.x - r.cx, p.y - r.cy);
+        for (let i = 0; i < 45; i++) run.update(1 / 60, { throttle: 0, steer: 0, boost: false });
+        const dC1 = Math.hypot(p.x - r.cx, p.y - r.cy);
+        assert.ok(dC1 < dC0 - 4, 'квадрант ' + q + ': без газа корпус сполз вниз (' +
+            Math.round(dC0) + '→' + Math.round(dC1) + '), а не пришпилен к стене');
+        // И касательно склону корпус едет, а не стоит: контурный ход обязан работать везде.
+        const run2 = new WB.Run({ seed: 4242, region: 0 });
+        const p2 = run2.player, r2 = run2.region;
+        for (const e of r2.entities.slice()) {
+            if (e !== p2 && e.type !== 'gate' && WB.M.dist(e.x, e.y, x0, y0) < 320) r2.remove(e);
+        }
+        p2.x = x0; p2.y = y0;
+        p2.heading = ang + Math.PI / 2; p2.vx = 0; p2.vy = 0;
+        for (let i = 0; i < 60; i++) run2.update(1 / 60, { throttle: 1, steer: 0, boost: false });
+        assert.ok(Math.hypot(p2.vx, p2.vy) > 30, 'квадрант ' + q + ': касательный ход по склону едет');
+    }
+});
+
+// takeDraft читал индекс как 1-базированный (cards[idx-1] || cards[idx]), а ВСЕ вызывающие —
+// клавиши Digit1-5, клики по картам в Hud, драйверы verify — передают 0-базированный. Нажатие
+// «2» брало ПЕРВУЮ карту, «3» — вторую; автопилот в winrun брал карту левее лучшей.
+test('чертёж: takeDraft(1) берёт ВТОРУЮ карту, а не первую', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 4242, region: 0, legacy: ['extra_card'] });
+    const p = run.player;
+    // ступень 2 открывает драфт: докармливаем массу до порога
+    let guard = 0;
+    while (!run.draftPending && guard++ < 40) run.gainMass(60, p.x, p.y);
+    assert.ok(run.draftPending, 'драфт открылся');
+    const cards = run.draftPending.cards;
+    assert.ok(cards.length >= 2, 'в предложении минимум две карты');
+    const want = cards[1];
+    const taken = run.takeDraft(1);
+    assert.equal(taken, want, 'взята именно карта с индексом 1');
+    // и граница: индекс 0 берёт первую (старый код здесь работал случайно)
+    const run2 = new WB.Run({ seed: 4242, region: 0 });
+    const p2 = run2.player;
+    guard = 0;
+    while (!run2.draftPending && guard++ < 40) run2.gainMass(60, p2.x, p2.y);
+    const want0 = run2.draftPending.cards[0];
+    assert.equal(run2.takeDraft(0), want0, 'индекс 0 берёт первую карту');
+});
+
+// Второе Дыхание: описание перка обещает «Один раз за забег», а newRegion() молча
+// перезаряжала его каждый регион — забег из 4 регионов давал до 4 воскрешений.
+// Заряд теперь ставится один раз в конструкторе Run (регресс: batch-трейсы Crown
+// полагались на баг-воскрешения, честная доктрина должна обходиться одним).
+test('Второе Дыхание: один заряд за забег, nextRegion его не перезаряжает', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 11, region: 0, legacy: ['second_wind'] });
+    assert.equal(run.secondWind, true, 'перк куплен — заряд есть со старта забега');
+    run.playerDeath();
+    assert.equal(run.player.alive, true, 'первая смерть: воскрешение до 45%');
+    assert.equal(run.secondWind, false, 'заряд потрачен');
+    assert.ok(run.player.hp >= run.player.maxHp * 0.45 - 1, 'hp восстановлены до 45%');
+    // новый регион — тот же забег: заряд НЕ возвращается
+    run.nextRegion();
+    assert.equal(run.secondWind, false, 'nextRegion не перезаряжает перк (описание: «за забег»)');
+    run.player.hp = 1;
+    run.playerDeath();
+    assert.equal(run.player.alive, false, 'вторая смерть в забеге — конец');
+    assert.equal(run.over, true, 'забег завершён поражением');
+    // без перка воскрешения нет вовсе
+    const run2 = new WB.Run({ seed: 11, region: 0, legacy: [] });
+    assert.equal(run2.secondWind, false, 'без second_wind заряда нет');
+    run2.playerDeath();
+    assert.equal(run2.over, true);
+});

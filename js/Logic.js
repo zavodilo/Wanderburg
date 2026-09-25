@@ -687,8 +687,12 @@ WB.playerStats = (c) => {
 
     let armor = WB.M.clamp((ch.armor || 0) + sum('plate'), -0.5, 0.75);
 
-    let dmg = 1 + (ch.dmg || 0) + sum('dmg') + (cap.arcaneDmg ? 0 : 0);
-    let range = 1 + (ch.range || 0) + sum('range') + sum('sight') + (cap.arcaneRange || 0);
+    // arcaneDmg/arcaneRange are NOT hull-wide: Vex's promise reads «Арканные модули: +30% урона,
+    // +15% дальности», so both live on the shot (fire) and on the reach of an arcane module
+    // (WB.reachOf). The old `(cap.arcaneDmg ? 0 : 0)` was a silent no-op — a captain sold for
+    // 150 scrap delivered +0% damage — and arcaneRange leaked onto every gun of the hull.
+    let dmg = 1 + (ch.dmg || 0) + sum('dmg');
+    let range = 1 + (ch.range || 0) + sum('range') + sum('sight');
     if (has('long_shot')) range *= 1.12;
 
     let steamMax = WB.num('STEAM_MAX', 100) + sum('steam');
@@ -728,6 +732,21 @@ WB.recompute = (c) => {
     c.hp = Math.min(c.hp, c.maxHp);
     c.steam = Math.min(c.steam == null ? c.stats.steamMax : c.steam, c.stats.steamMax);
     return c.stats;
+};
+
+/**
+ * The effective reach of one module on one hull: the hull-wide range modifier (chassis, nests,
+ * the long_shot legacy) and — for an ARCANE module only — the captain's arcaneRange (Vex).
+ * Every place that asks "can this gun hit?" (targeting, the firing arc, the shot's flight time)
+ * reads this one function, so a range bonus can never apply to aiming but not to firing.
+ * @param {any} c the castle; @param {any} mod the module; @param {number} level; @param {any} [st] stats
+ */
+WB.reachOf = (c, mod, level, st) => {
+    const s = st || (c.faction === 'player' ? c.stats : c.estats) || null;
+    let r = WB.moduleStat(mod, level, 'reach') * ((s && s.range) || 1);
+    const cap = c && c.captain ? c.captain.mods : null;
+    if (cap && cap.arcaneRange && mod && mod.arcane) r *= 1 + cap.arcaneRange;
+    return r;
 };
 
 /** An AI castle's stats: no chassis/captain, just its modules and the region scale. */
@@ -773,6 +792,9 @@ class WBRun {
         this.totals = { mass: 0, scrap: 0, kills: 0, devoured: 0, damage: 0, villages: 0, time: 0, wardens: 0 };
         this.gateKills = 0;
         this.newRegion(o);
+        // Second Wind — ОДИН раз за забег (так написано в описании перка): заряд ставится здесь,
+        // а не в newRegion, иначе каждое nextRegion молча перезаряжает уже потраченный перк.
+        this.secondWind = this.player.stats.secondWind;
     }
 
     // --- region lifecycle ----------------------------------------------------------
@@ -791,7 +813,7 @@ class WBRun {
             (o && o.captain) || this.captain || WB.CAPTAINS[0],
             this.legacy);
         this.rerollsLeft = this.player.stats.rerolls;
-        this.secondWind = this.player.stats.secondWind;
+        // NB: secondWind здесь НЕ трогаем — перк «Один раз за забег», см. конструктор Run.
         this.projectiles.length = 0;
         this.beams.length = 0;
         this.chunks.length = 0;
@@ -894,8 +916,15 @@ class WBRun {
         p.heading = ((p.heading + Math.PI) % WB.M.TAU + WB.M.TAU) % WB.M.TAU - Math.PI;
 
         // Thrust along the heading, minus gravity along the slope, minus drag.
-        const ax = Math.cos(p.heading) * throttle * accel - slope * 420 * WB.num('SLOPE_DRAG', 2.6) * 0.28;
-        const ay = Math.sin(p.heading) * throttle * accel - slope * 420 * WB.num('SLOPE_DRAG', 2.6) * 0.28;
+        // The slope term MUST be projected on the heading (as driveCastle does for every AI hull):
+        // subtracting the scalar from both ax and ay pushed hulls toward the world's (−1,−1)
+        // corner — on the mountain ring that pinned them to the wall in the (+x,+y) quadrant
+        // (winrun trace: v≈0 at dC=863 for 1000 s of "contour" — uphill thrust balanced a
+        // world-direction gravity that had nothing to do with the slope under the hull).
+        const grav = slope * 420 * WB.num('SLOPE_DRAG', 2.6) * 0.28;
+        const hx0 = Math.cos(p.heading), hy0 = Math.sin(p.heading);
+        const ax = hx0 * (throttle * accel - grav);
+        const ay = hy0 * (throttle * accel - grav);
         p.vx += ax * dt; p.vy += ay * dt;
         const drag = WB.num('DRAG', 1.5) + Math.abs(slope) * WB.num('SLOPE_DRAG', 2.6) + (p.stun > 0 ? 2.5 : 0);
         const d = Math.exp(-drag * dt);
@@ -987,7 +1016,7 @@ class WBRun {
             m.cd = Math.max(0, (m.cd || 0) - dt * (c.faction === 'player' ? 1 : 1 + 0.18 * ((c.ai && c.ai.enrage) || 0)));
             if (mod.behavior === 'passive' || mod.behavior === 'react') continue;
             if (mod.behavior === 'spawner') { this.stepSpawner(c, m, dt, st); continue; }
-            const range = WB.moduleStat(mod, m.level, 'reach') * (st.range || 1);
+            const range = WB.reachOf(c, mod, m.level, st);
             if (!(range > 0)) continue;
             const target = this.findTarget(c, m, range);
             // Turrets track; fixed mounts only fire inside their own arc.
@@ -1059,7 +1088,12 @@ class WBRun {
         const mx = c.x + Math.cos(aim) * off, my = c.y + Math.sin(aim) * off;
         let dmg = WB.moduleStat(mod, lvl, 'power') * (st.dmg || 1);
         if (c.faction === 'enemy') dmg *= this.scale * (c.boss ? 0.9 : 0.5);
-        const range = WB.moduleStat(mod, lvl, 'reach') * (st.range || 1);
+        // Magister Vex: arcane modules hit harder — per the captain's description, per module,
+        // on the shot itself (the old hull-wide no-op gave the player nothing for 150 scrap).
+        if (c.faction === 'player' && mod.arcane && c.captain && c.captain.mods.arcaneDmg) {
+            dmg *= 1 + c.captain.mods.arcaneDmg;
+        }
+        const range = WB.reachOf(c, mod, lvl, st);
         const shot = mod.shot || 'ball';
 
         // Captain Brann: more damage up close.
@@ -1875,7 +1909,11 @@ class WBRun {
             return d.cards;
         }
         const idx = typeof which === 'number' ? which : parseInt(which, 10);
-        const card = d.cards[idx - 1] || d.cards[idx];
+        // 0-based, strictly: EVERY caller (keys Digit1-5 in Game.js, card clicks in Hud.js, the
+        // verify drivers, the tests) passes an index. The old `cards[idx-1] || cards[idx]` treated
+        // it as 1-based, so pressing "2" took the FIRST card, "3" the second — and the machine
+        // driver silently took the card left of the one it scored best.
+        const card = Number.isFinite(idx) ? d.cards[idx] : null;
         if (!card) return null;
         if (card.kind === 'new') {
             if (p.modules.length >= p.slots) { this.emit('deny', { why: 'slots' }); return null; }
