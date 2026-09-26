@@ -919,6 +919,12 @@ function scoreCard(run, c) {
         // (mortar1: 896→959 с nest2); без мортира nest2 поднимает culverin 872→894 — ничто
         // (трейс 83432: T3 nest2↑, T4 nest3↑ против двойного mortar2 — myDps 18, смерть в 80 s).
         if (m.mod.id === 'nest') s = bandOk ? 58 : (p.modules.some(x => x.mod.id === 'mortar') ? 96 : 44);
+        // МОРТИРА2 БЕЗ ПОЛОСЫ = ПОЛОСА (arc11): единственный маршрут к 955+ без гнезда —
+        // 1075 с long_shot. Замер arc10: 4/4 билда, дошедшие до касания врат Венца, были
+        // «мортира есть, гнезда нет» (851 < 870 — смерть в 9-18 s), а upgrade:mortarL2
+        // стоил всего 130 и проигрывал второму двигателю (158-165). Без полосы Венец не
+        // бьётся ВООБЩЕ — карта дороже всего, что не является полосой или первым двигателем.
+        if (m.mod.id === 'mortar' && !bandOk && reachNew >= 955 && run.player.tier >= 4) s = Math.max(s, 178);
         // Мортира L2 на стэндоффе — +45% к единственному стволу, который достаёт с 905+
         // (13.1 → 19 dps: Железный Венец падает за ~360 s вместо ~520 — меньше окон под
         // саммоны и патрульный дрифт). Лучшая карта T5, когда полоса уже собрана.
@@ -976,7 +982,12 @@ function scoreCard(run, c) {
         // distance holds WITHOUT steam; every region from the Steppe up has L2-L3 mortars.
         if (mod.id === 'boiler' && run.regionIndex >= 1) s += 14;
         if (mod.id === 'boiler' && !p.modules.some(x => x.mod.id === 'boiler')) {
-            s += run.player.tier >= 4 ? 24 : 10;   // первый котёл — до любой экзотики: cruise 81→95+
+            // arc12b: двигатель-страховка T3 — 132 (выше турелей 128, ниже гнезда 136):
+            // трейс 321012 — котёл предлагался на T3 И T4, оба раза проиграл турели/мортире
+            // (106 < 128), билд пришёл к Венецу с полосой, но v81 — смерть в 17 s. Ранний
+            // двигатель не нужен r0-r1, но без него НЕ СОБИРАЕТСЯ crown-цепочка (полоса+
+            // двигатель = единственная конфигурация, переживающая касание врат).
+            s += run.player.tier >= 4 ? 24 : run.player.tier >= 3 ? 36 : 10;
         }
         if (mod.id === 'boiler' && run.player.tier >= 4 && !realEngine) s = Math.max(s, 165);   // T4+: двигатель или смерть (v81 не поднимется из спавн-мили никогда)
         // The tier-5 draft is the LAST pick: it finishes the build, it does not start one. With
@@ -1001,7 +1012,9 @@ function scoreCard(run, c) {
         // взятках; с T4 — 126, под мортиру — 158).
         if (mod.id === 'nest') {
             const haveMortar = p.modules.some(x => x.mod.id === 'mortar');
-            s = bandOk ? 56 : (run.player.tier >= 4 ? (haveMortar ? 158 : 126) : 136);
+            // arc11: гнездо ПОД мортиру на T4+ — достройка полосы (1004), 176: выше второго
+            // двигателя (158-165), потому что 4/4 бесполосных касаний Венца — смерть <20 s.
+            s = bandOk ? 56 : (run.player.tier >= 4 ? (haveMortar ? 176 : 126) : 136);
         }
         // Арканный Парус — двигатель королевской доктрины: sail1 с Серафиной (+30%) и
         // fast_boiler (+25%) даёт реген 42.8/s ≥ дренажа 34/s — буст перестаёт быть ресурсом
@@ -1012,6 +1025,13 @@ function scoreCard(run, c) {
             s = Math.max(s, run.regionIndex >= 2 ? 118
                 : (run.regionIndex >= 1 || p.tier >= 4) ? (haveB ? 104 : 88)
                 : (haveB ? 84 : 56));
+            // ДВИГАТЕЛЬ-СТРАХОВКА T2-T3 (arc12): бесконечный парус — полноценный двигатель
+            // crown-цепочки (подъём из спавн-мили + кольцо без него математически не
+            // держатся), а скоринг r0 давал ему 56 — трейс 218065: T3 парус(56) проиграл
+            // воркшопу(62) → на T5 нет двигателя → needEngine вместо band-охоты → мортира
+            // без полосы и смерть в 9 s. 100 — выше воркошопа/реликвария, ниже гнезда(136),
+            // мортиры(122) и турелей(110+бонусы): страховка не должна вытеснять стволы r0-r1.
+            if (run.player.tier <= 3 && sailInf && !realEngine) s = Math.max(s, 132);
             // T4+ без двигателя — смертный приговор под Венцом (v81: подъём из спавн-мили
             // математически невозможен, трейс 170541 батча8: 13 s, dAvg 356, inDps 228).
             // БЕСКОНЕЧНЫЙ БУСТ (arc5): если парус даёт steamRegen ≥ BOOST_DRAIN (Серафина +30%
@@ -1053,8 +1073,19 @@ function scoreCard(run, c) {
             const n = Math.min(p.slots, p.modules.length + picks);  // финальная геометрия
             const rel = WB.SLOT_ANGLE(slot, n);
             const rearDev = Math.abs(WB.M.angleDelta(rel, Math.PI)) * 180 / Math.PI;
+            // arc12b: штраф слота НЕ бьёт по мортире, которая ЗАВЕРШАЕТ полосу (гнездо уже
+            // есть): 158−60=98 проигрывало баллисте (128) — достройка полосы отменялась
+            // ровно там, где она единственная цель последних взяток (321012/257660). Ранняя
+            // «цепочная» мортира T2-T3 остаётся под −60: страховка двигателя (132) забирает
+            // T3 раньше, а слепой конус в r0-r1 режет myDps (замер 321012: смерть в r1).
+            const completesBand = mod.id === 'mortar' && !bandOk &&
+                p.modules.some(x => x.mod.id === 'nest');
             if (rearDev <= 60) s += mod.id === 'mortar' ? 30 : 18;  // корма: стреляет в погоне
-            else if (mod.id === 'mortar') s -= 60;                  // нос/борт: 98 < гнезда(100)/котла(106)/турелей(128+)
+            else if (completesBand) s += 0;                          // полоса важнее дуги
+            else if (mod.id === 'mortar') s -= 60;                  // нос/борт: слепой конус
+            // (arc12b пробовал здесь −15 для «цепочной» мортиры tier≤4 — замер 321012:
+            //  слепая мортира T3 вместо котла → myDps-провал и смерть в r1; страховка
+            //  двигателя 132 решает ту же задачу без потери ранней боеспособности.)
         }
         if (bandOk) {
             if (mod.id === 'culverin') s = 92;                        // a second long gun is pure dps
@@ -1111,6 +1142,13 @@ function handleDraft(run) {
         const engineNow = run.player.modules.some(x => x.mod && x.mod.id === 'boiler') ||
             run.player.stats.steamRegen >= WB.num('BOOST_DRAIN', 34);
         const hunting = !bandNow && !mortarNow && engineNow;
+        // ОХОТА ЗА ПОЛОСОЙ (arc11): мортира УЖЕ есть, гнезда нет — hunting (охота за мортирой)
+        // выключался ровно в том состоянии, из которого Venice не бьётся: 4/4 касаний Венца в
+        // батче arc10 — билды «mortar1 без nest» (851 < 870), смерть 9-18 s. Маршруты достройки:
+        // nest (1004) или upgrade:mortarL2 (1075) — рука крутится до них; worth 168/128 — ниже
+        // целей (176/178), выше второго двигателя (158-165) и брони (155): без полосы они
+        // уже не спасают (замер: band+sail — 13 s смерти под inst-562).
+        const bandRoutes = !bandNow && mortarNow && engineNow;
         // ДВИГАТЕЛЬ-ИЛИ-СМЕРТЬ (arc7): T4/T5 без котла/паруса — v81, подъём из спавн-мили
         // Венца математически невозможен (344769: T5 не нашёл двигателя, взял бомбарду 140,
         // смерть в 9 s, inDps 393). worth 160 — ниже котла(165)/паруса(168), выше бомбард(140)/
@@ -1118,8 +1156,8 @@ function handleDraft(run) {
         const needEngine = run.player.tier >= 4 && !engineNow;
         // worth 170 на T5-охоте: выше второго котла(165)/паруса(168)/спира(146)/nest(126) —
         // Late-руку крутим ДО кормовой мортиры (174-228), иначе полоса не собирается никогда.
-        const worth = late ? (hunting ? 170 : needEngine ? 160 : REROLL_WORTH_LATE)
-            : run.player.tier >= 4 ? (needEngine ? 160 : bandNow ? 58 : hunting ? 112 : 100) : 45;
+        const worth = late ? (hunting ? 170 : bandRoutes ? 168 : needEngine ? 160 : REROLL_WORTH_LATE)
+            : run.player.tier >= 4 ? (needEngine ? 160 : bandNow ? 58 : bandRoutes ? 128 : hunting ? 112 : 100) : 45;
         const cost = run.rerollCost();
         const surplus = late ? run.player.mass - cost * 2 : run.player.mass - WB.tierMass(run.player.tier + 1);
         const rrCap = late ? 14 : 2;
@@ -1171,7 +1209,18 @@ function drive(run) {
     // спавн-мили Венца. Риск: 1-вр-2 у ворот — поэтому только дальняя и только при armed-билде.
     const gateKeep = liveFortsTop.length <= Math.min(WB.num('GATE_FORTRESSES', 2), Math.max(1, (r.fortressesTotal || 4) - 1)) &&
         liveFortsTop.every(c => r.gate && WB.M.dist(c.x, c.y, r.gate.x, r.gate.y) > 1150);
-    run.__gateArmed = goNow && (liveFortsTop.length === 0 || gateKeep || !armed);
+    // CROWN-ГОТОВНОСТЬ (arc12): касание врат Венца без полосы (myTop ≥ 960) И двигателя —
+    // математическая смерть: батч arc10 — 4/4 бесполосных касаний = 9-18 s (mortar1 851 <
+    // mortar3 870, inst-562 ×2); 321012 (полоса 1004, НЕТ двигателя) — 17 s: hunt 84 >
+    // крейса 81, зарядный цикл стаскивает корпус под 870 даже с идеальной полосой. Честный
+    // стаул (врата не трогаем, регион не зачищен) дороже для батча, но перестаёт кормить босса
+    // и даёт честную классификацию: «не собрал» вместо «собрал и умер за 9 s».
+    const gunsDrv = gunsOf(p, p.stats);
+    const myTopDrv = gunsDrv.length ? Math.max(...gunsDrv.map(g => g.reach)) : 0;
+    const engineDrv = p.modules.some(x => x.mod && x.mod.id === 'boiler') ||
+        p.stats.steamRegen >= WB.num('BOOST_DRAIN', 34);
+    const crownReady = run.regionIndex < 3 || (myTopDrv >= 960 && engineDrv);
+    run.__gateArmed = goNow && crownReady && (liveFortsTop.length === 0 || gateKeep || !armed);
     // With the gate open and no warden up yet, the OBJECTIVE beats duels: a knight camping the
     // courtyard used to hold the driver in a forever-duel while the gate waited ten metres away.
     const gateFirst = goNow && !run.bossActive;
