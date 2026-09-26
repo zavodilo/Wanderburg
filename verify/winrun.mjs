@@ -337,7 +337,12 @@ function ringSpotFor(run, p, foe, b) {
     for (let cand = lo; cand <= hi; cand += 18) {
         const my = myGuns.reduce((a, g) => a + (g.reach >= cand + 8 ? g.dps : 0), 0);
         if (my <= 0.1) continue;
-        const inD = foeDpsAt(run, foe, cand);
+        // ЗАРЯДНЫЙ ЛЮФТ ВЕНЦА (arc7): его выпад — 91 px за 1.7 s. Кольцо на cand−45 «чистое»
+        // только между рывками: mortar3 (870) после выпада доставал с 880-920 и вкатывал
+        // 300-500 hp за цикл (L3-урон ×2.628). С люфтом 95 кольцо встаёт на 965+ — там
+        // 870+91 = 961 НЕ достаёт никогда, а наша мортира (1003 с гнездом) добивает.
+        // Варденам прежние 45: их кольцо/гонка калиброваны батчами на hunt 94.
+        const inD = foeDpsAt(run, foe, cand - (foe.kind === 'crown' ? 95 : 45));
         const net = my - inD;
         pts.push({ cand, my, inD, net, ratio: my / (inD + 2) });
     }
@@ -549,7 +554,13 @@ function fightCastle(run, foe, isBoss) {
         // лечения 20-30 s за цикл. Старый блок расширения стоял ДО stance-матрицы и ею
         // перезаписывался — фактически disengage у боссов не работал никогда.
         const myTop = b.dCeil + 10;
-        desired = WB.M.clamp(Math.max(b.dFloor + 120, 620, desired), 620, Math.max(620, myTop - 15));
+        // ТЕНЬ 905-950, НЕ 990 (arc8): dFloor+120 ставил корпус на самую кромку дальности
+        // мортиры (1003−990 = 13 px маржи — каждое колебание дистанции глушило единственный
+        // ствол тени) и требовал недостижимой геометрии (максимальная устойчивая взаимная
+        // дистанция в долине R=900 — ~972 при Венце у ворот, в погоне — 495-600). +45 над его
+        // полом: mortar3 870 не достаёт, заряд не стартует (<700), hunt срывается (>900),
+        // а мортира (1003) бьёт с запасом 60+.
+        desired = WB.M.clamp(Math.max(b.dFloor + 45, 620, desired), 620, Math.max(620, myTop - 15));
     }
     // FIGHT-ZONE CAP: every lost race ended the same way — escape pushed the hull onto the rim
     // (dC 700-830), the wall slope ate its speed, and the boss walked in for the execution
@@ -587,8 +598,14 @@ function fightCastle(run, foe, isBoss) {
     // (273498: dAvg 472/смерть против базовых 631/108 s победы; обмен +2 myDps за +6 inDps).
     // 1.05 (радиал 0.5) сохраняет и подъём, и дугу мортиры (dev 126−60=66 ≤ 68).
     const stallTilt = stalled;
-    const tiltCap = cantRun ? 1.45 : (stallTilt ? 1.05 : 0.6);
-    const tiltLam = (cantRun || stallTilt) ? 8 : 12;
+    // ДОБИВКА (arc6): босс < 12% hp и наш hp переживёт ~9 с входящего — наклон 1.45 независимо
+    // от сталла и tiltOk. Замер 328931 (arc4 И arc5 — бой идентичен): 192 s, myDps 24, inDps 14,
+    // bossLeft=259 — не хватило ~1.4 dps; бортовой залп (мортира 15-20 + спир 11 с 470) закрывает
+    // такие финиши за 10-15 s. В высоком входящем (hp < 9×foeDps) добивка = размен — не лезем.
+    const killing = isBoss && foe.hp > 0 && foe.hp < foe.maxHp * 0.12 &&
+        p.hp > foeDpsAt(run, foe, d) * 9;
+    const tiltCap = (cantRun || killing) ? 1.45 : (stallTilt ? 1.05 : 0.6);
+    const tiltLam = (cantRun || stallTilt || killing) ? 8 : 12;
 
     // --- the charge: telegraph locks chargeDir 1.5 s ahead and the lunge covers ~380 px.
     //     CLOSE (≤460): a hard committed sidestep off THE LINE — a per-frame side choice
@@ -629,7 +646,7 @@ function fightCastle(run, foe, isBoss) {
             // при переносимом входящем (tiltOk) доворачиваем курс, чтобы фикс-маунты стреляли
             // на бегу. Внутри смертельного поля наклон = чистая потеря отрыва (трейс 210146 r1:
             // наклон под tesla2 на d 300-430 — стен-лок, пар 0, смерть за 21 s).
-            const ea = (d >= 300 && tiltOk) ? arcBias(run, p, ea0, foe, tiltCap, tiltLam) : ea0;
+            const ea = (d >= 300 && (tiltOk || killing)) ? arcBias(run, p, ea0, foe, tiltCap, tiltLam) : ea0;
             run.__why = 'boss CHARGE-RUN d=' + Math.round(d);
             const dh = WB.M.angleDelta(p.heading, dodge(run, ea, 0.45));
             // в гаунтлете (<560) тяга жжётся до дна; в стане — обязательна (drag 4.0)
@@ -696,14 +713,17 @@ function fightCastle(run, foe, isBoss) {
         // Long commits: at 0.7 s the away-vector rotation (both hulls circling at the rim) kept
         // re-picking rays and the hull spin-walked in place at v≈1 while mortars landed.
         if (run.__escT <= 0 || run.__escA == null || Math.abs(WB.M.angleDelta(run.__escAway || away, away)) > 1.2) {
-            run.__escT = 1.5; run.__escAway = away;
+            // Коммит луча внутри inst-поля длиннее (2.5 s): перекладка курса каждый 1.5 s
+            // сбрасывала скорость на станах (dh-гейт) ровно там, где она — единственная валюта.
+            run.__escT = (isBoss && b.inst > 0 && d < b.inst + 80) ? 2.5 : 1.5;
+            run.__escAway = away;
             run.__escA = escapeRay(run, p, r, foe, b.dFloor, away, wallCap);
         }
         // tight dodge window while escaping: a full 0.9 s window let every distant bolt veto the
         // escape course frame-by-frame and the hull shuddered in place at v≈0 under the mortars.
         // Наклон в escape — только при переносимом входящем (tiltOk, см. выше) или когда
         // отрыва всё равно нет (cantRun): внутри смертельного поля наклон срывает подъём.
-        const escCap = tiltOk ? tiltCap : 0;
+        const escCap = (tiltOk || killing) ? tiltCap : 0;
         const escA = isBoss && escCap > 0 ? arcBias(run, p, run.__escA, foe, escCap, tiltLam) : run.__escA;
         const want = dodge(run, isBoss ? escA : gateGuard(run, escA), 0.45);
         const dh = WB.M.angleDelta(p.heading, want);
@@ -730,10 +750,17 @@ function fightCastle(run, foe, isBoss) {
             else if (run.__instLatch && p.steam <= 25) run.__instLatch = false;
             else if (!run.__instLatch && p.steam >= 70) run.__instLatch = true;
         } else run.__instLatch = null;
+        // СПРИНТ ИЗ INST-ПОЛЯ (arc6): стан-лок теслы — ловушка, из которой нет выхода без
+        // скорости (трейс 218065 r3: подъём шёл +38 px/s до d 393, потом dh-гейт 1.57 срезал
+        // буст на додж-джиттере, пар закололся на 8, v упал до 49-85, Венец (84) догнал и
+        // доел корпус на dC 642 у рима). Под inst курс и так коммитный — гейт 2.4, порог пара 6
+        // (реген 42.8/s у sail-билда восстанавливает быстрее, чем тесла успевает заколоть).
+        const sprint = isBoss && b.inst > 0 && d < b.inst + 80 && desired > b.inst;
+        const dhGate = sprint ? 2.4 : (p.stun > 0 ? 1.9 : 1.57);
         const boostNow = infSteam
-            ? (p.steam > 8 && Math.abs(dh) < (p.stun > 0 ? 1.9 : 1.57))
+            ? (p.steam > (sprint ? 6 : 8) && Math.abs(dh) < dhGate)
             : (inInstDeep
-                ? (run.__instLatch && p.steam > 4 && Math.abs(dh) < (p.stun > 0 ? 1.9 : 1.57))
+                ? (run.__instLatch && p.steam > 4 && Math.abs(dh) < dhGate)
                 : ((p.steam > 55 || d < 340 || p.steam > 20 && d < 520 ||
                     (isBoss && foe.kind === 'crown' && p.steam > 25 && d < 720) ||
                     (p.stun > 0 && p.steam > 8)) && Math.abs(dh) < 1.35));
@@ -810,7 +837,7 @@ function fightCastle(run, foe, isBoss) {
     run.__why = (isBoss ? 'boss' : 'duel') + ' d=' + Math.round(d) + ' band[' + Math.round(b.dFloor) +
         ',' + Math.round(b.dCeil) + ']->' + Math.round(desired) + (b.safe ? '' : ' UNSAFE') +
         (run.__retreat ? ' RETREAT' : '');
-    const bandCap = tiltOk ? (cantRun || stallTilt || run.__retreat ? 1.45 : 1.05) : 0;
+    const bandCap = (tiltOk || killing) ? (cantRun || killing || stallTilt || run.__retreat ? 1.45 : 1.05) : 0;
     const bandDir = isBoss && bandCap > 0
         ? arcBias(run, p, Math.atan2(uy, ux), foe, bandCap, tiltLam)
         : (isBoss ? Math.atan2(uy, ux) : gateGuard(run, Math.atan2(uy, ux)));
@@ -850,6 +877,16 @@ function scoreCard(run, c) {
             const topUp = gunsUp.length ? Math.max(...gunsUp.map(g => g.reach)) : 0;
             const engine = p.modules.some(x => x.mod.id === 'boiler' || x.mod.id === 'sail');
             if (topUp >= 960 && engine) s = Math.max(s, 126);
+            // БРОНЯ — ПОСЛЕДНЯЯ ВЗЯТКА (arc6): когда стойла полны (freeSlots ≤ 0) и ядро
+            // (полоса ≥960 + двигатель) собрано, plate2 (.28→.35, −10% входящего) — сильнейшая
+            // карта T5: замер подъёма 218065 (спринт из-под Венца, inst 562): 15 s × 231 dps
+            // = 3465 против бюджета 4381 (3021 + second_wind 1360) — не хватало ~100 hp;
+            // plate2 даёт ~+350 эффективных hp = те самые 1.5-2.5 s подъёма. При свободном
+            // слоте новая турель (140) важнее — myDps 15 у 5-модульного билда (305174).
+            // (arc7: при bandOk броня важнее заполнения слота — 155 > 140: подъём из-под
+            // Венца упирается в hp-бюджет (недовоз 57 px / ~580 hp, замер 218065), а шестая
+            // турель кормит только уже выигранный ринг.)
+            if (topUp >= 960 && engine && run.player.tier >= 5 && (freeSlots <= 0 || bandOk)) s = Math.max(s, 155);
         }
         if (m.mod.aoe || m.mod.instant || m.mod.cone) s += 10;        // blast/beam never miss a dodger
         s += Math.max(0, reachNew - reachNow) * 0.10;
@@ -863,7 +900,13 @@ function scoreCard(run, c) {
         // саммоны и патрульный дрифт). Лучшая карта T5, когда полоса уже собрана.
         if (m.mod.id === 'mortar' && reachNew >= 955 && run.player.tier >= 3) s = Math.max(s, 112);
         if (m.mod.id === 'mortar' && reachNew >= 955 && run.player.tier >= 4) s = Math.max(s, 130);
-        if (m.mod.id === 'mortar' && bandOk && run.player.tier >= 5) s = Math.max(s, 132);
+        // mortar2 на T5 при полосе — 160 (arc8): бой с Венцом — это 400+ секунд, где
+        // myDps 62 против inDps 55 (замер 233903: 36 s, 33% hp Венца, trade 1.13 при нужных
+        // 1.56). +45% к единственному стволу, который достаёт на тени (19-25 dps с AoE по
+        // кластеру саммонов) — самый большой одиночный рычаг; выше plate2(155), потому что
+        // подъём под inst-0 (единственные выигрываемые роллы) переживается и без брони
+        // (21 s × ~100 = 2100 < 3021), а вот убить 6833 без мортиры2 почти нечем.
+        if (m.mod.id === 'mortar' && bandOk && run.player.tier >= 5) s = Math.max(s, 160);
         if (m.mod.id === 'boiler') s += 20;                           // accel IS cruise speed here
         // The Crown engine: at tier 5 with the range built, lifting cruise past the AI's 94
         // (boiler L2 ≈ 97) is what turns the Iron Crown from a knife race into a deadlocked
@@ -893,6 +936,17 @@ function scoreCard(run, c) {
             keg: 36, hive: 40, sail: 16, banner: 20, reliquary: 24, ram: 12, gatling: 28, flame: 26
         };
         let s = BASE[mod.id] != null ? BASE[mod.id] : 30 + power * 0.3 + reach * 0.05;
+        const isGun = power > 0 && reach > 0;
+        const haveWorkshop = p.modules.some(m => m.mod && m.mod.id === 'workshop');
+        const haveBoiler = p.modules.some(m => m.mod && m.mod.id === 'boiler');
+        // НАСТОЯЩИЙ ДВИГАТЕЛЬ (arc5): котёл (cruise 98+) ИЛИ парус с бесконечным бустом
+        // (steamRegen×1.55 ≥ 34 — Серафина+fast_boiler дают 42.8). Второй «двигатель» поверх
+        // имеющегося — почти балласт (замер 218065: T5 взял котёл 165 ПОСЛЕ паруса вместо
+        // охоты за мортирой → нет полосы → r3 смерть в 14 s) — правила 165/168 больше не
+        // должны его поджигать.
+        const haveSail = p.modules.some(m => m.mod && m.mod.id === 'sail');
+        const sailInf = st.steamRegen * 1.55 >= WB.num('BOOST_DRAIN', 34);
+        const realEngine = haveBoiler || (haveSail && st.steamRegen >= WB.num('BOOST_DRAIN', 34));
         // Boiler is THE module of the late game: accel is cruise speed here (the speed stat is a
         // cap the drag equilibrium never reaches), and cruise 98 > boss 94 means the siege
         // distance holds WITHOUT steam; every region from the Steppe up has L2-L3 mortars.
@@ -900,10 +954,7 @@ function scoreCard(run, c) {
         if (mod.id === 'boiler' && !p.modules.some(x => x.mod.id === 'boiler')) {
             s += run.player.tier >= 4 ? 24 : 10;   // первый котёл — до любой экзотики: cruise 81→95+
         }
-        if (mod.id === 'boiler' && run.player.tier >= 4 && !p.modules.some(x => x.mod.id === 'boiler')) s = Math.max(s, 165);   // T4+: двигатель или смерть (v81 не поднимется из спавн-мили никогда)
-        const isGun = power > 0 && reach > 0;
-        const haveWorkshop = p.modules.some(m => m.mod && m.mod.id === 'workshop');
-        const haveBoiler = p.modules.some(m => m.mod && m.mod.id === 'boiler');
+        if (mod.id === 'boiler' && run.player.tier >= 4 && !realEngine) s = Math.max(s, 165);   // T4+: двигатель или смерть (v81 не поднимется из спавн-мили никогда)
         // The tier-5 draft is the LAST pick: it finishes the build, it does not start one. With
         // the range piece already drafted (a gun over the boss's mortar line), the engine room
         // beats another gun: boiler lifts cruise past the enemy 94 (the chase problem dies),
@@ -919,11 +970,14 @@ function scoreCard(run, c) {
         if (mod.id === 'workshop') s += run.regionIndex * 14;         // attrition insurance
         // The nest is the band itself: without one, a mortar-warden (floor 813) out-reaches every
         // gun we can draft and every fight becomes a lost knife race (trace 59675: myTop 739).
-        // гнездо: на T2-T3 — 100 (ранняя полоса не кормит: варденов бьёт бортовой dps,
-        // трейсы 83432/59675: nest/spire-рань без котла = v81 и смерть в r0-r1); с T4 — 126.
+        // гнездо: на T2-T3 — 136 (arc5: Венец НЕ бьётся без полосы — mortar1 без гнезда = 851 <
+        // его mortar3 870, замер 218065: r3 смерть в 9 s, inDps 353; с гнездом mortar = 1003 ≥ 960.
+        // Турели выигрывают r0-r2 и без него (обмены 62/17-74/27), а вот r3 без полосы —
+        // математическая смерть, поэтому гнездо теперь выше баллисты(128)/спира(132) на ранних
+        // взятках; с T4 — 126, под мортиру — 158).
         if (mod.id === 'nest') {
             const haveMortar = p.modules.some(x => x.mod.id === 'mortar');
-            s = bandOk ? 56 : (run.player.tier >= 4 ? (haveMortar ? 158 : 126) : 100);
+            s = bandOk ? 56 : (run.player.tier >= 4 ? (haveMortar ? 158 : 126) : 136);
         }
         // Арканный Парус — двигатель королевской доктрины: sail1 с Серафиной (+30%) и
         // fast_boiler (+25%) даёт реген 42.8/s ≥ дренажа 34/s — буст перестаёт быть ресурсом
@@ -936,7 +990,18 @@ function scoreCard(run, c) {
                 : (haveB ? 84 : 56));
             // T4+ без двигателя — смертный приговор под Венцом (v81: подъём из спавн-мили
             // математически невозможен, трейс 170541 батча8: 13 s, dAvg 356, inDps 228).
-            if (run.player.tier >= 4 && !haveB) s = Math.max(s, 160);   // выше nest(158)/mortar(162 почти): сначала двигатель
+            // БЕСКОНЕЧНЫЙ БУСТ (arc5): если парус даёт steamRegen ≥ BOOST_DRAIN (Серафина +30%
+            // и fast_boiler +25%: 17×1.55×1.25×1.3 = 42.8 ≥ 34), буст перестаёт быть ресурсом —
+            // средние 129-142 px/s против hunt 84 у Венца и 94 у варденов. Подъём из спавн-мили
+            // Венца: ~10-12 s под огнём вместо ~40 s на котле (замер 218065: r3 смерть в 13 s,
+            // dAvg 355, inDps 231 — котёл не вывозит). Тогда парус ВЫШЕ котла (168 > 165).
+            const sailInfinite = sailInf;
+            if (run.player.tier >= 4 && !realEngine) s = Math.max(s, sailInfinite ? 168 : 160);
+            // ВТОРОЙ ДВИГАТЕЛЬ ПОД ВЕНЕЦ (arc7): котловой билд + парус на T5 = бесконечный
+            // буст (27.6×1.55 = 42.8 ≥ 34): спринт из-под inst-562 даёт 120+ px/s вместо 98.
+            // Замер arc6: band+boiler — 12-13 s смерти под Венцом; band+sail — 13 s с
+            // недовыезом 57 px до выхода из inst. Парус поверх котла — ровно эти +22 px/s.
+            if (run.player.tier >= 5 && haveBoiler && !haveSail && sailInf) s = Math.max(s, 158);
         }
         if (mod.id === 'mortar') {
             // Вторая мортира без гнезда — балласт броула (дуга 0-15%, myDps 11 при бумаге 33):
@@ -946,8 +1011,35 @@ function scoreCard(run, c) {
             s = bandOk ? 110 : (run.player.tier >= 4 && p.modules.some(x => x.mod.id === 'nest') ? 158
                 : haveMortar ? 96 : 122);
         }
+        // СЛОТ-ГЕОМЕТРИЯ ФИКС-МАУНТОВ (arc5). Мортира и тесла — единственные turn:false
+        // стволы: они стреляют только в ±75° от своего СЛОТА, а слот = порядок взятия
+        // (Logic.js: slot = index в массиве, SLOT_ANGLE(i,n) = i/n·360° − 90°). Финальная
+        // геометрия дредноута (n=6): slot2 = 30° (нос), slot3 = 90° (борт), slot4 = 150° и
+        // slot5 = 210° (корма). Бои с боссами — 85-95% escape/chargeRun, босс висит сзади
+        // на ~180°: кормовая мортира работает всю погоню (blast 168 игнорит сайдстеп —
+        // честные 15-20 dps к myDps), носовая/бортовая молчит (лаба UPTIME: arc 0-15%).
+        // Замер arc4: проигрыши r2 — это равные обмены (myDps≈inDps) при пуле босса 4951
+        // против наших 3021; 328931 умер с bossLeft=259 за 192 s. Отсюда: фикс-маунт,
+        // лежащий в нос/борт (T2/T3), — штраф ниже гнезда/котла/турелей (пусть реролл-охота
+        // ищет мортиру на T4/T5), в корму (T4/T5) — бонус. Турелям (turn:true) и пассивкам
+        // слот безразличен — их скоринг не трогаем.
+        if (isGun && !mod.turn && p.modules.length < p.slots) {
+            const slot = p.modules.length;                          // куда ляжет эта карта
+            const picks = 5 - run.player.tier + 1;                  // взяток осталось (включая эту)
+            const n = Math.min(p.slots, p.modules.length + picks);  // финальная геометрия
+            const rel = WB.SLOT_ANGLE(slot, n);
+            const rearDev = Math.abs(WB.M.angleDelta(rel, Math.PI)) * 180 / Math.PI;
+            if (rearDev <= 60) s += mod.id === 'mortar' ? 30 : 18;  // корма: стреляет в погоне
+            else if (mod.id === 'mortar') s -= 60;                  // нос/борт: 98 < гнезда(100)/котла(106)/турелей(128+)
+        }
         if (bandOk) {
             if (mod.id === 'culverin') s = 92;                        // a second long gun is pure dps
+            // ПОСЛЕДНЯЯ ВЗЯТКА ЗАПОЛНЯЕТ СТОЙЛО (arc6): на T5 при bandOk и свободном слоте
+            // plate2-апгрейд (126) перебивал новую турель (спир 110), слот простаивал — замер
+            // 305174: билд из 5 модулей, myDps 15 против 3×culverin2+2×tesla2, bossLeft 4270.
+            // Дальнобойная новинка (reach ≥ 550 с гнёздом/long_shot: спир 620, баллиста 687,
+            // бомбарда 567) — выше броне-апгрейда; короткостволы (тесла 528/гатлинг/флейм) — нет.
+            if (run.player.tier >= 5 && freeSlots > 0 && isGun && reach >= 550) s = Math.max(s, 140);
         } else {
             if (reach >= need + 60) s += 18;                          // a gun that over-reaches the boss
             // The band is NOT built: a gun in hand beats a trinket. Junk passives lost runs
@@ -985,7 +1077,25 @@ function handleDraft(run) {
         // soft 870 → гонка на 470 px и смерть в 25 s. Бесплатный реролл на охоту дешевле.
         const gunsNow = gunsOf(run.player, run.player.stats);
         const bandNow = gunsNow.length > 0 && Math.max(...gunsNow.map(g => g.reach)) >= 960;
-        const worth = late ? REROLL_WORTH_LATE : run.player.tier >= 4 ? (bandNow ? 58 : 100) : 45;
+        // ОХОТА ЗА КОРМОВОЙ МОРТИРОЙ (arc5): слот-штраф задвинул мортиру на T4/T5 — но если
+        // там её не найти, билд остаётся БЕЗ полосы (culverin+nest+long_shot = 872 < 903) и
+        // myDps падает до 24 (замер 210146: бомбарда 567 не доставала до dAvg 598). Тогда
+        // T4/T5 крутят руку до мортиры/полосы: worth 112/140 — выше нестов(126) и бомбард(77),
+        // но ниже кормовой мортиры(174+) и двигателя(160-165). Без двигателя охота НЕ включается:
+        // v81 под Венцом — математическая смерть, сначала котёл/парус, потом ствол.
+        const mortarNow = run.player.modules.some(x => x.mod && x.mod.id === 'mortar');
+        const engineNow = run.player.modules.some(x => x.mod && x.mod.id === 'boiler') ||
+            run.player.stats.steamRegen >= WB.num('BOOST_DRAIN', 34);
+        const hunting = !bandNow && !mortarNow && engineNow;
+        // ДВИГАТЕЛЬ-ИЛИ-СМЕРТЬ (arc7): T4/T5 без котла/паруса — v81, подъём из спавн-мили
+        // Венца математически невозможен (344769: T5 не нашёл двигателя, взял бомбарду 140,
+        // смерть в 9 s, inDps 393). worth 160 — ниже котла(165)/паруса(168), выше бомбард(140)/
+        // спир(146)/nest(126): рука крутится, пока не выпадет двигатель.
+        const needEngine = run.player.tier >= 4 && !engineNow;
+        // worth 170 на T5-охоте: выше второго котла(165)/паруса(168)/спира(146)/nest(126) —
+        // Late-руку крутим ДО кормовой мортиры (174-228), иначе полоса не собирается никогда.
+        const worth = late ? (hunting ? 170 : needEngine ? 160 : REROLL_WORTH_LATE)
+            : run.player.tier >= 4 ? (needEngine ? 160 : bandNow ? 58 : hunting ? 112 : 100) : 45;
         const cost = run.rerollCost();
         const surplus = late ? run.player.mass - cost * 2 : run.player.mass - WB.tierMass(run.player.tier + 1);
         const rrCap = late ? 14 : 2;
@@ -1206,7 +1316,15 @@ function drive(run) {
             return steerToDir(p, dodge(run, Math.atan2(ay - p.y, ax - p.x)), p.steam > 60);
         }
         const a = Math.atan2(g.y - p.y, g.x - p.x);
-        return steerToDir(p, a, dg < 520 && p.steam > 15);
+        // FULL-STEAM TOUCH (arc6): спринт из-под Венца живёт только с полным баком — буст-дэш
+        // на последних 520 px приезжал на касание с stm≈21-44 (трейс 218065: спринт задохнулся,
+        // подъём +31 px/s, смерть на d 307 у рима). Крейс 95-101 почти так же быстр, а реген
+        // (42.8/s у sail-билда, 27.6 у котлового) добирает бак до 100 за 5-6 с подхода:
+        // касание при v≈95/stm≈100 → первые 2.5-3 s спринта (153 px/s) выносят корпус из
+        // inst-поля (562) ДО того, как стан-цикл теслы3 съест скорость. Буст — только когда
+        // угроза БЛИЗКО (<400; дальние патрули threat(900) держали буст включённым всю дорогу).
+        const threatD = threat ? WB.M.dist(p.x, p.y, threat.x, threat.y) : 1e9;
+        return steerToDir(p, a, (threatD < 400 || p.steam > 92) && dg < 520 && p.steam > 15);
     }
     if (armed) {
         if (!(committed && committed.alive && committed.kind === 'fortress')) {
