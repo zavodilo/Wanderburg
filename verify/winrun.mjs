@@ -134,6 +134,16 @@ function escapeDir(run, foes) {
     const away = foes && foes.length
         ? Math.atan2(p.y - foes[0].y, p.x - foes[0].x)
         : Math.atan2(r.cy - p.y, r.cx - p.x);
+    const dCnow2 = Math.hypot(p.x - r.cx, p.y - r.cy);
+    // PIN-ON-SLOPE (трейс 321012, r2): корпус прижало к склону кольца (dC 750-757, v=1-10),
+    // а «прочь от всех» всегда наружу — охотники сходятся из долины. 25 s стоянки под
+    // перекрёстным огнём стоили 1000 hp и спирали до смерти. Когда скорость упала ниже
+    // половины равновесной И мы за 0.66R — склон держит корпус: cap ужесточается до dC−80,
+    // и луч-320 вынужден искать выход вниз по склону (тангенциально-внутрь), где тяга снова
+    // работает. Без защипа наружные направления выигрывали по дистанции до врагов и
+    // вжимали корпус в стену навсегда.
+    const vNow = Math.hypot(p.vx || 0, p.vy || 0);
+    const pinned = dCnow2 > r.regionR * 0.66 && vNow < v * 0.5;
     let bestA = away, bestSc = -1e9;
     for (let i = 0; i < 12; i++) {
         const a = i / 12 * Math.PI * 2;
@@ -144,8 +154,8 @@ function escapeDir(run, foes) {
             sc += Math.min(260, WB.M.dist(qx, qy, c.x, c.y) - f) * 0.7;
         }
         const dC = Math.hypot(qx - r.cx, qy - r.cy);
-        const dCnow2 = Math.hypot(p.x - r.cx, p.y - r.cy);
-        const cap2 = dCnow2 > r.regionR * 0.55 ? Math.min(r.regionR * 0.78, dCnow2 + 120) : r.regionR * 0.78;
+        const cap2 = pinned ? Math.max(r.regionR * 0.4, dCnow2 - 80)
+            : dCnow2 > r.regionR * 0.55 ? Math.min(r.regionR * 0.78, dCnow2 + 120) : r.regionR * 0.78;
         sc -= Math.max(0, dC - cap2) * 6;
         if (r.gate && r.gate.open && !run.bossActive) {
             const dGate = WB.M.dist(qx, qy, r.gate.x, r.gate.y);
@@ -750,6 +760,17 @@ function fightCastle(run, foe, isBoss) {
             else if (run.__instLatch && p.steam <= 25) run.__instLatch = false;
             else if (!run.__instLatch && p.steam >= 70) run.__instLatch = true;
         } else run.__instLatch = null;
+        // ДУЭЛЬНАЯ ЗАЩЁЛКА (трейс 321012, r2): билд без котла (regen < дренажа 34) на
+        // непрерывном бусте высаживал бак за 8-10 s (stm 82→7) ровно внутри флора охотника —
+        // дальше крейс 83 = его крейс, «отрыв» превращался в мили-обмен (bolt×20). Импульсы
+        // как в inst-поле: жжём до 25, coast до 70 — средняя скорость выше крейса охотника,
+        // а резерв ≥25 всегда есть на додж заряда. Авария (d<260) и стан жгут помимо защёлки.
+        const duelPace = !isBoss && !infSteam;
+        if (duelPace && escaping) {
+            if (run.__duelLatch == null) run.__duelLatch = p.steam > 55;
+            else if (run.__duelLatch && p.steam <= 25) run.__duelLatch = false;
+            else if (!run.__duelLatch && p.steam >= 70) run.__duelLatch = true;
+        } else run.__duelLatch = null;
         // СПРИНТ ИЗ INST-ПОЛЯ (arc6): стан-лок теслы — ловушка, из которой нет выхода без
         // скорости (трейс 218065 r3: подъём шёл +38 px/s до d 393, потом dh-гейт 1.57 срезал
         // буст на додж-джиттере, пар закололся на 8, v упал до 49-85, Венец (84) догнал и
@@ -759,11 +780,14 @@ function fightCastle(run, foe, isBoss) {
         const dhGate = sprint ? 2.4 : (p.stun > 0 ? 1.9 : 1.57);
         const boostNow = infSteam
             ? (p.steam > (sprint ? 6 : 8) && Math.abs(dh) < dhGate)
-            : (inInstDeep
-                ? (run.__instLatch && p.steam > 4 && Math.abs(dh) < dhGate)
-                : ((p.steam > 55 || d < 340 || p.steam > 20 && d < 520 ||
-                    (isBoss && foe.kind === 'crown' && p.steam > 25 && d < 720) ||
-                    (p.stun > 0 && p.steam > 8)) && Math.abs(dh) < 1.35));
+            : duelPace
+                ? ((run.__duelLatch || d < 260 || (p.stun > 0 && p.steam > 8)) &&
+                    p.steam > 4 && Math.abs(dh) < 1.35)
+                : (inInstDeep
+                    ? (run.__instLatch && p.steam > 4 && Math.abs(dh) < dhGate)
+                    : ((p.steam > 55 || d < 340 || p.steam > 20 && d < 520 ||
+                        (isBoss && foe.kind === 'crown' && p.steam > 25 && d < 720) ||
+                        (p.stun > 0 && p.steam > 8)) && Math.abs(dh) < 1.35));
         return { throttle: 1, steer: WB.M.clamp(dh * 2.4, -1, 1), boost: boostNow };
     }
 

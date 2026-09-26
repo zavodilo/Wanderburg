@@ -766,7 +766,12 @@ class WBRun {
     /** @param {{ seed?: number|string, region?: number, chassis?: any, captain?: any, legacy?: string[], meta?: any }} opts */
     constructor(opts) {
         const o = opts || {};
-        this.seed = WB.RNG.hash(o.seed != null ? o.seed : Date.now());
+        // D-4: seedIn — the value a ?seed= URL carries to reproduce this run (Game.querySeed
+        // parses it back with |0, and every real caller passes an int32: loadout roll, ?seed=,
+        // winrun). this.seed stays the hashed internal seed — do not confuse the two.
+        const rawSeed = o.seed != null ? o.seed : Date.now();
+        this.seedIn = typeof rawSeed === 'number' ? rawSeed : String(rawSeed);
+        this.seed = WB.RNG.hash(rawSeed);
         this.rnd = WB.RNG.make(this.seed);
         this.meta = o.meta || WB.Save.meta || WB.Save.load();
         this.legacy = o.legacy || (this.meta ? this.meta.legacy : []);
@@ -2170,6 +2175,7 @@ class WBRun {
         const t = this.totals;
         return {
             won: this.won, regions: this.regionIndex + (this.won ? 1 : 0), regionIndex: this.regionIndex,
+            seed: this.seedIn != null ? this.seedIn : this.seed >>> 0,   // D-4: reproducible with ?seed= — the summary carries the INPUT seed
             time: Math.round(t.time),
             mass: Math.round(t.mass), scrap: Math.round(t.scrap + WB.num('SCRAP_PER_MASS', 0.012) * t.mass),
             kills: t.kills, villages: t.villages, devoured: t.devoured, damage: Math.round(t.damage),

@@ -370,9 +370,26 @@ const World3D = {
         const fmt = vb.format;
         const iP = fmt.elements.find(el => el.name === pc.SEMANTIC_POSITION);
         const idxBuf = mesh.indexBuffer && mesh.indexBuffer[0];
-        const idx = idxBuf ? idxBuf.lock() : null;
+        // lock() hands back a RAW ArrayBuffer for a GPU-created index buffer (a typed view only
+        // when initial data was one): an ArrayBuffer has no .length, nTri became NaN, the loops
+        // ran zero times and the mesh cached "no creases" forever — the whole scene silently lost
+        // its ink (found in Wanderburg: every mesh of every page, tests only covered the
+        // non-indexed path). Wrap by the buffer's own format.
+        let idx = null;
+        if (idxBuf) {
+            const raw = idxBuf.lock();
+            // ArrayBuffer.isView is realm-safe (unlike instanceof) — the buffers can come from
+            // another realm in tests and from the GPU path in the browser.
+            idx = ArrayBuffer.isView(raw)
+                ? raw
+                : new (idxBuf.format === pc.INDEXFORMAT_UINT32 ? Uint32Array
+                    : idxBuf.format === pc.INDEXFORMAT_UINT8 ? Uint8Array : Uint16Array)(raw);
+        }
         const vCount = vb.numVertices;
-        const strideF = fmt.size / 4;
+        // POSITION stride: setPositions+setNormals builds a PLANAR buffer (POSITION block at 0,
+        // NORMAL block at vCount*12), so the element's own stride is the truth — fmt.size is the
+        // logical vertex size and reads garbage positions on a planar layout.
+        const strideF = ((iP && iP.stride) || fmt.size) / 4;
         const PF = new Float32Array(/** @type {ArrayBuffer} */ (vb.lock()));
         const oP = (iP ? iP.offset : 0) / 4;
         const nTri = idx ? idx.length / 3 : vCount / 3;

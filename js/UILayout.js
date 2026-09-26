@@ -32,6 +32,7 @@ const UI_LAYOUT = [
     { id: 'loadCaptainB', kind: 'button', anchor: 'top-left', x: 1000, y: 268, w: 200, h: 42, text: "ДРУГОЙ КАПИТАН  ▸", fontSize: 15, color: '#f6efe0', fill: '#241d17', border: '', radius: 8, alpha: 1, visible: 1 },
     { id: 'loadSeed', kind: 'text', anchor: 'top-center', x: 0, y: 350, text: "", fontSize: 13, color: '#f0e6d2', shadow: '#120e0a', alpha: 0.6, visible: 1 },
     { id: 'btnRoll', kind: 'button', anchor: 'middle-center', x: -320, y: 250, w: 190, h: 44, text: "НОВЫЙ СИД", fontSize: 15, color: '#f6efe0', fill: '#241d17', border: '', radius: 8, alpha: 1, visible: 1 },
+    { id: 'btnSeedCopy', kind: 'button', anchor: 'middle-center', x: 330, y: 250, w: 180, h: 44, text: "КОПИРОВАТЬ ССЫЛКУ", fontSize: 13, color: '#f6efe0', fill: '#241d17', border: '', radius: 8, alpha: 1, visible: 1 },
     { id: 'btnGo', kind: 'button', anchor: 'middle-center', x: -95, y: 244, w: 190, h: 56, text: "В ДОЛИНУ", fontSize: 15, color: '#f6efe0', fill: '#5f9e4a', border: '', radius: 8, alpha: 1, visible: 1 },
     { id: 'btnBackLoad', kind: 'button', anchor: 'middle-center', x: 130, y: 250, w: 190, h: 44, text: "◂  НАЗАД", fontSize: 15, color: '#f6efe0', fill: '#241d17', border: '', radius: 8, alpha: 1, visible: 1 },
     { id: 'legTitle', kind: 'text', anchor: 'top-center', x: 0, y: 22, text: "НАСЛЕДИЕ", fontSize: 25, color: '#d8ab52', shadow: '#120e0a', alpha: 1, visible: 1 },

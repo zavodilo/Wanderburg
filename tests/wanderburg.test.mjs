@@ -276,6 +276,23 @@ test('смерть игрока завершает забег и считает 
     assert.ok(s.modules.length > 0);
 });
 
+test('D-4: сид забега — в summary и в раскладке снаряжения', () => {
+    const { get } = game();
+    const WB = get('WB');
+    const run = new WB.Run({ seed: 12345, region: 0 });
+    assert.equal(run.summary().seed, 12345, 'summary несёт сид — ?seed= воспроизводит забег');
+    // Каждый элемент экранов Hud существует в раскладке: кнопка не может висеть в воздухе.
+    const ui = loadScripts(['js/UILayout.js', 'js/Hud.js']);
+    const layout = ui.get('UI_LAYOUT');
+    const Hud = ui.get('Hud');
+    const ids = new Set(layout.map((r) => r.id));
+    for (const [screen, list] of Object.entries(Hud.SCREENS)) {
+        for (const id of list) assert.ok(ids.has(id), screen + ': элемент ' + id + ' не найден в UI_LAYOUT');
+    }
+    assert.ok(ids.has('btnSeedCopy'), 'кнопка копирования ссылки на сид — в раскладке');
+    assert.ok(typeof Hud.copySeedLink === 'function' && typeof Hud.seedLink === 'function');
+});
+
 test('наследие: покупка списывает лом и открывает контент', () => {
     const { get } = game();
     const WB = get('WB');

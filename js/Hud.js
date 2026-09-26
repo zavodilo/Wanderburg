@@ -47,7 +47,7 @@ const Hud = {
     SCREENS: {
         title: ['titleBig', 'titleSub', 'titleVer', 'btnStart', 'btnLoadout', 'btnLegacy', 'btnHelp', 'btnSettings', 'titleScrap', 'titleStats', 'titleHint'],
         loadout: ['loadTitle', 'loadChassisP', 'loadChassisH', 'loadChassisN', 'loadChassisD', 'loadChassisS', 'loadChassisB',
-            'loadCaptainP', 'loadCaptainH', 'loadCaptainN', 'loadCaptainD', 'loadCaptainB', 'loadSeed', 'btnRoll', 'btnGo', 'btnBackLoad'],
+            'loadCaptainP', 'loadCaptainH', 'loadCaptainN', 'loadCaptainD', 'loadCaptainB', 'loadSeed', 'btnRoll', 'btnSeedCopy', 'btnGo', 'btnBackLoad'],
         legacy: ['legTitle', 'legScrap', 'legListP', 'legList', 'legHint', 'legUp', 'legDown', 'legBuy', 'legBack', 'legWipe'],
         settings: ['setTitle', 'setPanel', 'setList', 'setPrev', 'setNext', 'setBack'],
         help: ['helpTitle', 'helpPanel', 'helpText', 'helpBack'],
@@ -148,6 +148,7 @@ const Hud = {
         on('loadChassisB', () => this.cycleChassis());
         on('loadCaptainB', () => this.cycleCaptain());
         on('btnRoll', () => { this.seed = this.rollSeed(); this.renderLoadout(); });
+        on('btnSeedCopy', () => this.copySeedLink());
         on('btnGo', () => game.startRun(true));
         on('btnBackLoad', () => this.openTitle());
         on('legUp', () => this.moveCursor(-1));
@@ -209,6 +210,50 @@ const Hud = {
     rollSeed() {
         // A seed from the clock is fine here: it is the player's choice, not the simulation.
         return (Date.now() % 1000000) ^ (Math.round(performance.now()) * 7919);
+    },
+
+    /** D-4: the URL that replays THIS loadout seed (?seed=), for sharing and bug reports. */
+    seedLink() {
+        const seed = this.seed >>> 0;
+        if (typeof window === 'undefined' || !window.location) return '?seed=' + seed;
+        return window.location.origin + window.location.pathname + '?seed=' + seed;
+    },
+
+    /**
+     * Copy to the clipboard: the async API on https (Pages), the hidden-textarea trick
+     * elsewhere (a plain http localhost has no navigator.clipboard). Resolves true on success.
+     */
+    copyText(s) {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(s).then(() => true, () => this._copyFallback(s));
+        }
+        return Promise.resolve(this._copyFallback(s));
+    },
+
+    _copyFallback(s) {
+        try {
+            if (typeof document === 'undefined') return false;
+            const ta = document.createElement('textarea');
+            ta.value = s;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch (e) { return false; }
+    },
+
+    /** Copy the seed link and flash the verdict on the button itself (no toast machinery here). */
+    copySeedLink() {
+        const link = this.seedLink();
+        Promise.resolve(this.copyText(link)).then((ok) => {
+            if (!ok && typeof console !== 'undefined') console.log('seed link: ' + link);
+            this.text('btnSeedCopy', ok ? 'СКОПИРОВАНО ✓' : 'ССЫЛКА В КОНСОЛИ');
+            if (this._seedCopyTimer) clearTimeout(this._seedCopyTimer);
+            this._seedCopyTimer = setTimeout(() => this.text('btnSeedCopy', 'КОПИРОВАТЬ ССЫЛКУ'), 1400);
+        });
     },
 
     openLoadout() {
@@ -465,7 +510,8 @@ const Hud = {
             '\nСнесено крепостей и рыцарей: ' + summary.kills +
             '\nДеревень съедено: ' + summary.villages +
             '\nУрона нанесено: ' + summary.damage +
-            '\nВремя похода: ' + this.clock(summary.time));
+            '\nВремя похода: ' + this.clock(summary.time) +
+            (summary.seed != null ? '\nСид забега: ' + summary.seed + '  (?seed= — тот же поход)' : ''));
         this.text('endMods', 'Модули: ' + (summary.modules.length
             ? summary.modules.map(m => m.name + ' ' + m.level).join(' · ')
             : '—'));
