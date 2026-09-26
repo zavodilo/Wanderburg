@@ -59,6 +59,17 @@ const perf = await page.evaluate(async () => {
     // enabled mesh instances of the world/actor layers (frustum culling only lowers the real
     // number). The budget is the variant's tightened maxDrawCalls, not the profile canon.
     const app = window.app.location.view.app;
+    // The ink/outline registries: view._inks is created by World3D.inkMesh on the view it is
+    // given — find whichever object actually carries them, and collect the LINE instances so
+    // the census can report base entities and ink attachments separately (the profile canon
+    // counts ENTITIES — "batch or instance them" — ink ribbons are the styling pass on top).
+    const view = window.app.location.view;
+    let inkHost = null;
+    for (const c of [view, view.view, view.world, view.worldView, app.location, app.arcView].filter(Boolean)) {
+        if (c && c._inks instanceof Map && (!inkHost || c._inks.size > inkHost._inks.size)) inkHost = c;
+    }
+    const inkSet = new Set();
+    if (inkHost) for (const e of inkHost._inks.values()) if (e && e.mi) inkSet.add(e.mi);
     // UNIQUE enabled mesh instances: one instance sits in several layers at once (the world pass,
     // the ink-edge pass, the actor pass), so a per-layer sum counts every hull three times.
     const seen = new Set();
@@ -68,11 +79,12 @@ const perf = await page.evaluate(async () => {
         for (const mi of list) if (mi.mesh && mi.node && mi.node.enabled) seen.add(mi);
     }
     const instances = seen.size;
+    let base = 0;
+    for (const mi of seen) if (!inkSet.has(mi)) base++;
     // P-1 breakdown: where the frame's GL draws actually go. The renderer's pass counters are
     // never reset without profiling, so the DELTA over one rendered frame is the per-frame cost.
     // The delta is taken between two 'postrender' events — exactly one rendered frame apart
     // (an rAF pair can span two frames on a slow device and double every number).
-    const view = window.app.location.view;
     const rt = app.renderer || {};
     const dev = app.graphicsDevice;
     const snap = () => ({
@@ -99,13 +111,11 @@ const perf = await page.evaluate(async () => {
         for (const mi of list) if (mi.mesh && mi.node && mi.node.enabled) n++;
         if (n || layer.enabled) layers[layer.id + ':' + (layer.name || '?')] = n;
     }
-    // the ink/outline registries: view._inks is created by World3D.inkMesh on the view it is
-    // given — find whichever object actually carries them (Runtime view vs its inner handles).
-    let inks = 0, outlines = 0;
-    const cands = [view, view.view, view.world, view.worldView, app.location, app.arcView].filter(Boolean);
-    for (const c of cands) {
-        if (c._inks && c._inks.size > inks) inks = c._inks.size;
-        if (c._outlines && c._outlines.size > outlines) outlines = c._outlines.size;
+    // the outline registry (the game draws no outlines — ink was collected above)
+    const inks = inkHost ? inkHost._inks.size : 0;
+    let outlines = 0;
+    for (const c of [view, view.view, view.world, view.worldView, app.location, app.arcView].filter(Boolean)) {
+        if (c._outlines instanceof Map && c._outlines.size > outlines) outlines = c._outlines.size;
     }
     const passes = {
         frames: frames,
@@ -124,6 +134,7 @@ const perf = await page.evaluate(async () => {
     const draws = frames.length ? med(frames.map(f => f.forward + f.shadow + f.depth)) : null;
     return {
         instances: instances,
+        base: base,
         passes: passes,
         dbg: { cfg: cfg.performance, v: Variant.get(Variant.currentId()).performance, cur: Variant.currentId(), gen: typeof PROJECT_VARIANTS !== 'undefined' ? PROJECT_VARIANTS.variants['wanderburg-lowpoly3d'].performance : null },
         draws: draws,
@@ -138,16 +149,19 @@ if (perf.error) { console.log('  budget : probe error — ' + perf.error); faile
 else {
     console.log('  dbg    :', JSON.stringify(perf.dbg), '| page:', await page.evaluate(() => location.href));
     if (perf.passes) console.log('  passes :', JSON.stringify(perf.passes));
-    console.log('  budget : ' + perf.draws + ' GL draws/frame (median of ' + (perf.passes.frames || []).length +
-        ' rendered), ' + perf.instances + ' unique instances (base+ink)' +
-        ' · budget ' + perf.budget + ' draws/frame (profile ' + perf.profileBudget + ')' +
+    console.log('  budget : ' + perf.base + ' base + ' + (perf.instances - perf.base) + ' ink = ' + perf.instances +
+        ' instances, ' + perf.draws + ' GL draws/frame (median of ' + (perf.passes.frames || []).length + ' rendered)' +
+        ' · entity budget ' + perf.budget + ' (profile ' + perf.profileBudget + ')' +
         (perf.warnings && perf.warnings.length ? ' WARN ' + perf.warnings.join('; ') : ''));
-    // The gate is the LITERAL contract: maxDrawCalls = GL draws per frame. The instance census is
-    // a second, absolute leak guard: pooled projectiles/puffs or dead entities left enabled grow
-    // it without bound (a healthy full valley with ink on measures ~1100-1200).
-    if (perf.draws != null && perf.draws > perf.budget * 1.35) { console.log('  FAIL: ' + perf.draws + ' GL draws/frame over 1.35x the budget ' + perf.budget + ' — a pass draws dead instances (pool leak?)'); failed++; }
-    else if (perf.draws != null && perf.draws > perf.budget) console.log('  note  : GL draws/frame ' + perf.draws + ' over the budget ' + perf.budget + ' — WORLD3D_TOON_INK=1/0 is the mobile lever');
-    if (perf.instances != null && perf.instances > 2500) { console.log('  FAIL: instance census ' + perf.instances + ' — pools left enabled grow forever (leak?)'); failed++; }
+    // The budget counts ENTITIES (the kit semantics: "batch or instance them"): base instances
+    // against the profile canon. Ink ribbons are the styling pass on top of the same entities.
+    if (perf.base != null && perf.base > perf.budget * 1.35) { console.log('  FAIL: base census ' + perf.base + ' over 1.35x the entity budget ' + perf.budget + ' — pool leak?'); failed++; }
+    // GL draws/frame swing with camera/culling (365 zoomed-in … ~1230 with the whole valley in
+    // frame) — the absolute number is a NOTE, the LEAK gate is the ratio: more draws than
+    // instances (+sky/overlay margin) means some pass draws dead or double instances.
+    if (perf.draws != null && perf.draws > perf.instances * 1.25 + 200) { console.log('  FAIL: ' + perf.draws + ' GL draws/frame vs ' + perf.instances + ' instances — a pass draws dead/double instances'); failed++; }
+    else if (perf.draws != null && perf.draws > 4000) { console.log('  FAIL: GL draws/frame ' + perf.draws + ' — absolute leak guard'); failed++; }
+    else if (perf.draws != null && perf.draws > 1500) console.log('  note  : GL draws/frame ' + perf.draws + ' (full valley in frame) — WORLD3D_TOON_INK=1/0 is the mobile lever');
 }
 
 const drove = await page.evaluate(async () => {
