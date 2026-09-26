@@ -883,8 +883,12 @@ function scoreCard(run, c) {
         // flat for 20 s). BLAST and INSTANT weapons ignore the sidestep — mortar (168 aoe),
         // spire (92), tesla (instant+stun), flame (cone) are the guns that actually kill wardens;
         // culverin/ballista remain valuable for reach, fortresses and the ~50% they do land.
+        // Баллиста 70→92: после фикса дуги (фикс-маунты стреляют только в ±75° от маунта,
+        // а бои — 85-95% escape/chargeRun) турели — единственные стволы со 100% аптаймом
+        // (лаба UPTIME: culverin/spire/ballista shots=факт/ожидание 1:1, мортира 0-15% дуги).
+        // Баллиста — 14 dps, pierce 3, турель; в гонке/броуле она стабильнее второй мортиры.
         const BASE = {
-            culverin: 85, nest: 112, mortar: 118, ballista: 70, spire: 110, bombard: 55,
+            culverin: 85, nest: 112, mortar: 118, ballista: 92, spire: 110, bombard: 55,
             tesla: 70, boiler: 96, furnace: 78, workshop: 62, masonry: 60, plate: 58,
             keg: 36, hive: 40, sail: 16, banner: 20, reliquary: 24, ram: 12, gatling: 28, flame: 26
         };
@@ -934,7 +938,14 @@ function scoreCard(run, c) {
             // математически невозможен, трейс 170541 батча8: 13 s, dAvg 356, inDps 228).
             if (run.player.tier >= 4 && !haveB) s = Math.max(s, 160);   // выше nest(158)/mortar(162 почти): сначала двигатель
         }
-        if (mod.id === 'mortar') s = bandOk ? 110 : (run.player.tier >= 4 && p.modules.some(x => x.mod.id === 'nest') ? 158 : 122);
+        if (mod.id === 'mortar') {
+            // Вторая мортира без гнезда — балласт броула (дуга 0-15%, myDps 11 при бумаге 33):
+            // первая мортира остаётся ключом полосы (единственный ствол 900+), вторая — только
+            // под гнездо/полосу, иначе уступает турелям.
+            const haveMortar = p.modules.some(x => x.mod.id === 'mortar');
+            s = bandOk ? 110 : (run.player.tier >= 4 && p.modules.some(x => x.mod.id === 'nest') ? 158
+                : haveMortar ? 96 : 122);
+        }
         if (bandOk) {
             if (mod.id === 'culverin') s = 92;                        // a second long gun is pure dps
         } else {
