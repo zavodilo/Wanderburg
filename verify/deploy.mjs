@@ -101,7 +101,7 @@ const perf = await page.evaluate(async () => {
             if (out.length >= 3) { app.off('postrender', h); resolve(out); }
         };
         app.on('postrender', h);
-        setTimeout(() => { app.off('postrender', h); resolve(out); }, 8000);
+        setTimeout(() => { app.off('postrender', h); resolve(out); }, 20000);
     });
     // per-layer census: which layers hold the instances (the ink lines live in the source layer)
     const layers = {};
@@ -159,7 +159,8 @@ else {
     // GL draws/frame swing with camera/culling (365 zoomed-in … ~1230 with the whole valley in
     // frame) — the absolute number is a NOTE, the LEAK gate is the ratio: more draws than
     // instances (+sky/overlay margin) means some pass draws dead or double instances.
-    if (perf.draws != null && perf.draws > perf.instances * 1.25 + 200) { console.log('  FAIL: ' + perf.draws + ' GL draws/frame vs ' + perf.instances + ' instances — a pass draws dead/double instances'); failed++; }
+    if (perf.draws == null) console.log('  note  : no rendered frame captured in 20 s — draws/frame gate SKIPPED on this run (host too slow; the drive check below still proves frames render)');
+    else if (perf.draws > perf.instances * 1.25 + 200) { console.log('  FAIL: ' + perf.draws + ' GL draws/frame vs ' + perf.instances + ' instances — a pass draws dead/double instances'); failed++; }
     else if (perf.draws != null && perf.draws > 4000) { console.log('  FAIL: GL draws/frame ' + perf.draws + ' — absolute leak guard'); failed++; }
     else if (perf.draws != null && perf.draws > 1500) console.log('  note  : GL draws/frame ' + perf.draws + ' (full valley in frame) — WORLD3D_TOON_INK=1/0 is the mobile lever');
 }
