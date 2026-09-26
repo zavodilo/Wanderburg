@@ -1226,17 +1226,26 @@ function drive(run) {
     //      half-hearted repositioning between overlapping pockets bled 2400 hp in 38 s in the
     //      Crown valley (trace 75513) while the objective kept pulling the hull back in.
     if (p.regenDelay > 0.5 && !(p.stats && p.stats.burn > 0) && !boss && !hunter) {
-        const shooters = r.castles.filter(c => c.alive && c !== p && c.faction !== p.faction &&
+        // ARC10 — горячие/ближние: панику триггерила ЛЮБАЯ крепость в reach+220, но стоящая
+        // в 900-1033 px физически не достаёт (мортарный снаряд летит ~4 s, корпус за это время
+        // уходит на 330 px с крейса). В r2 при 5-6 охотниках фантомные стрелки держали siege
+        // прерванным почти перманентно (трейс 321012: hp 3107→1686 за 100 s при 1 убийстве —
+        // myDps-коллапс: каждый срыв committed обнуляет аптайм полосы). Триггер — только по
+        // ГОРЯЧИМ (reach+100: достают с поправкой на полёт и сближение); ближний набор по-
+        //прежнему кормит escapeDir (отходить надо от всех, даже фантомных — они станут
+        // горячими через 2-3 s) и disengage-окно.
+        const near = r.castles.filter(c => c.alive && c !== p && c.faction !== p.faction &&
             WB.M.dist(p.x, p.y, c.x, c.y) < maxReachOf(c, run.scale) + 220);
-        if (shooters.length >= 2 || (shooters.length === 1 && p.hp < p.maxHp * 0.6)) {
-            if (shooters.length >= 2) run.__disUntil = run.time + 2.5;
-            run.__why = 'reposition n=' + shooters.length;
+        const hot = near.filter(c => WB.M.dist(p.x, p.y, c.x, c.y) < maxReachOf(c, run.scale) + 100);
+        if (hot.length >= 2 || (hot.length === 1 && p.hp < p.maxHp * 0.6)) {
+            if (hot.length >= 2) run.__disUntil = run.time + 2.5;
+            run.__why = 'reposition n=' + near.length + ' hot=' + hot.length;
             committed = null;                                       // drop the siege target: survive first
-            return steerToDir(p, dodge(run, escapeDir(run, shooters), 0.45), p.steam > 40);
+            return steerToDir(p, dodge(run, escapeDir(run, near), 0.45), p.steam > 40);
         }
-        if (shooters.length) {
-            run.__why = 'reposition n=1';
-            return steerToDir(p, dodge(run, escapeDir(run, shooters), 0.45), p.steam > 55);
+        if (hot.length === 1) {
+            run.__why = 'reposition n=1 hot';
+            return steerToDir(p, dodge(run, escapeDir(run, near), 0.45), p.steam > 55);
         }
     }
     if (run.__disUntil && run.time < run.__disUntil && !boss) {
